@@ -20,8 +20,6 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'Doctor_Clinic_Specialty',
-    tableName: 'Doctor_Clinic_Specialty',           
-    timestamps: true              
   });
   return Doctor_Clinic_Specialty;
 };

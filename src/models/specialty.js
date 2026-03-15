@@ -19,9 +19,7 @@ module.exports = (sequelize, DataTypes) => {
     image: DataTypes.STRING
   }, {
     sequelize,
-    modelName: 'Specialty',
-    tableName: 'Specialty',           
-    timestamps: true              
+    modelName: 'Specialty',           
   });
   return Specialty;
 };

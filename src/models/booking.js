@@ -21,9 +21,7 @@ module.exports = (sequelize, DataTypes) => {
     timeType: DataTypes.STRING
   }, {
     sequelize,
-    modelName: 'Booking',
-    tableName: 'Booking',           
-    timestamps: true              
+    modelName: 'Booking',            
   });
   return Booking;
 };

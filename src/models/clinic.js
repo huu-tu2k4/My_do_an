@@ -20,9 +20,7 @@ module.exports = (sequelize, DataTypes) => {
     image: DataTypes.STRING
   }, {
     sequelize,
-    modelName: 'Clinic',
-    tableName: 'Clinic',           
-    timestamps: true              
+    modelName: 'Clinic',          
   });
   return Clinic;
 };

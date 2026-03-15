@@ -21,9 +21,7 @@ module.exports = (sequelize, DataTypes) => {
     doctorId: DataTypes.INTEGER
   }, {
     sequelize,
-    modelName: 'Schedule',
-    tableName: 'Schedule',           
-    timestamps: true              
+    modelName: 'Schedule',            
   });
   return Schedule;
 };

@@ -20,9 +20,7 @@ module.exports = (sequelize, DataTypes) => {
     files: DataTypes.TEXT
   }, {
     sequelize,
-    modelName: 'History',
-    tableName: 'History',           
-    timestamps: true              
+    modelName: 'History',           
   });
   return History;
 };
