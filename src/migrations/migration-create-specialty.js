@@ -9,6 +9,9 @@ module.exports = {
         type: Sequelize.INTEGER
       },
       description: {
+        type: Sequelize.STRING
+      },
+      description: {
         type: Sequelize.TEXT
       },
       image: {
