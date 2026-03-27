@@ -48,11 +48,8 @@ let postCRUD = async (req, res) => {
 }
 
 let putCRUD = async (req, res) => {
-    console.log(req.body);
-    let allUsers = await CRUDService.updateUser(req.body);
-    return res.render('displayCRUD.ejs', {
-        data: allUsers,
-    });
+    await CRUDService.updateUser(req.body);
+    return res.redirect('/get-crud');
 }
 
 let deleteCRUD = async (req, res) => {
