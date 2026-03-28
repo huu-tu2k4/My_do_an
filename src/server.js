@@ -3,9 +3,12 @@ import bodyParser from "body-parser";
 import viewEngine from "./config/viewEngine";
 import initWebRoutes from "./routes/web";
 import connectDB from "./config/connectDB";
+import cors from "cors";
 require('dotenv').config();
 
-let app = express();
+const app = express();
+app.use(cors({origin: true}));
+// app.use(cors({origin: true, credentials: true}));
 
 //config app
 app.use(bodyParser.json());
@@ -16,7 +19,7 @@ initWebRoutes(app);
 
 connectDB();
 
-let port = process.env.PORT || 8386;
+const port = process.env.PORT || 8386;
 
 app.listen(port, () => {
     console.log(`BackEnd is running with port : ${port}`);
