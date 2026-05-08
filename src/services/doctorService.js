@@ -55,13 +55,37 @@ let getAllDoctors = () => {
     });
 };
 
+let checkRequiredFields = (inputData) => {
+    let arrFields = ['doctorId', 
+        'contentHTML', 
+        'contentMarkdown', 
+        'action', 
+        'selectedPrice', 
+        'selectedPayment', 
+        'selectedProvince', 
+        'nameClinic', 
+        'addressClinic', 
+        'specialtyId'];
+    let isValid = true;
+    let element = '';
+    for(let i = 0; i < arrFields.length; i++) {
+        if(!inputData[arrFields[i]]) {
+            isValid = false;
+            element = arrFields[i];
+            break;
+        }
+    }
+    return { isValid, element };
+}
+
 let postInforDoctor = (inputData) => {
     return new Promise(async (resolve, reject) => {
         try {
-            if(!inputData.doctorId || !inputData.contentHTML || !inputData.contentMarkdown || !inputData.action || !inputData.selectedPrice || !inputData.selectedPayment || !inputData.selectedProvince || !inputData.nameClinic || !inputData.addressClinic) {
+            let { isValid, element } = checkRequiredFields(inputData);
+            if(!isValid) {
                 resolve({
                     errCode: 1,
-                    errMessage: 'Missing required parameters'
+                    errMessage: `Missing required parameter: ${element}`
                 });
             }
             else{
@@ -71,9 +95,7 @@ let postInforDoctor = (inputData) => {
                         contentHTML: inputData.contentHTML,
                         contentMarkdown: inputData.contentMarkdown,
                         description: inputData.description,
-                        doctorId: inputData.doctorId,
-                        specialtyId: inputData.specialtyId,
-                        clinicId: inputData.clinicId
+                        doctorId: inputData.doctorId
                     })
                 }
                 else if(inputData.action === 'EDIT') {
@@ -103,7 +125,9 @@ let postInforDoctor = (inputData) => {
                         paymentId: inputData.selectedPayment,
                         addressClinic: inputData.addressClinic,
                         nameClinic: inputData.nameClinic,
-                        note: inputData.note
+                        note: inputData.note,
+                        specialtyId: inputData.specialtyId,
+                        clinicId: inputData.clinicId
                     });
                 }
                 else {
@@ -115,7 +139,9 @@ let postInforDoctor = (inputData) => {
                         paymentId: inputData.selectedPayment,
                         addressClinic: inputData.addressClinic,
                         nameClinic: inputData.nameClinic,
-                        note: inputData.note
+                        note: inputData.note,
+                        specialtyId: inputData.specialtyId,
+                        clinicId: inputData.clinicId
                     });
                 }
 
@@ -155,7 +181,8 @@ let getDetailDoctorById = (id) => {
                             include: [
                                 { model: db.Allcode, as: 'priceData', attributes: ['valueEn', 'valueVi'] },
                                 { model: db.Allcode, as: 'provinceData', attributes: ['valueEn', 'valueVi'] },
-                                { model: db.Allcode, as: 'paymentData', attributes: ['valueEn', 'valueVi'] }
+                                { model: db.Allcode, as: 'paymentData', attributes: ['valueEn', 'valueVi'] },
+                                { model: db.Specialty, as: 'specialtyData', attributes: ['nameVi', 'nameEn'] },
                             ] 
                         },
                         { model: db.Allcode, as: 'positionData', attributes: ['valueEn', 'valueVi'] }
