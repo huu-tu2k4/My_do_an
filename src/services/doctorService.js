@@ -1,4 +1,4 @@
-
+import emailService from './emailService';
 import db from '../models/index';
 import { request } from 'express';
 import _ from 'lodash';
@@ -367,6 +367,80 @@ let getProfileDoctorById = (doctorId) => {
     });
 };
 
+let getListPatientForDoctor = (doctorId, date) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if(!doctorId || !date) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'Missing required parameters'
+                });
+            }
+            else{
+                let data = await db.Booking.findAll({
+                    where: { doctorId: doctorId,
+                            date: date, 
+                            statusId: 'S2' },
+                    include: [
+                        { model: db.User, as: 'patientData', attributes: ['email', 'firstName', 'lastName', 'address', 'gender'],
+                            include: [
+                                { model: db.Allcode, as: 'genderData', attributes: ['valueEn', 'valueVi'] }
+                            ]
+                        },
+                        { model: db.Allcode, as: 'timeTypeDataPatient', attributes: ['valueEn', 'valueVi'] }
+                    ],
+                    raw: true,
+                    nest: true
+                });
+                if(!data) data = {};
+                resolve({
+                    errCode: 0,
+                    errMessage: 'OK',
+                    data: data
+                });
+            }
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+let sendRemedy = (data) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if(!data.email || !data.doctorId || !data.patientId || !data.timeType) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'Missing required parameters'
+                });
+            }
+            else{
+                // Update patient status
+                let appointment = await db.Booking.findOne({
+                    where: {
+                        doctorId: data.doctorId,
+                        patientId: data.patientId,
+                        timeType: data.timeType,
+                        statusId: 'S2'
+                    },
+                    raw: false
+                });
+                if(appointment) {
+                    appointment.statusId = 'S3';
+                    await appointment.save();
+                }
+                await emailService.sendAttachment(data);
+                resolve({
+                    errCode: 0,
+                    errMessage: 'OK'
+                });
+            }
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
 module.exports = {
     getTopDoctorHome: getTopDoctorHome,
     getAllDoctors: getAllDoctors,
@@ -375,5 +449,7 @@ module.exports = {
     bulkCreateSchedule: bulkCreateSchedule,
     getScheduleByDateService: getScheduleByDateService,
     getExtraInforDoctorById: getExtraInforDoctorById,
-    getProfileDoctorById: getProfileDoctorById
+    getProfileDoctorById: getProfileDoctorById,
+    getListPatientForDoctor: getListPatientForDoctor,
+    sendRemedy: sendRemedy
 };

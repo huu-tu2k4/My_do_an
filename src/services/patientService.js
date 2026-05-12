@@ -11,7 +11,15 @@ let buildUrlEmail = (doctorId, token) => {
 let postBookAppointment = (data) => {
     return new Promise(async (resolve, reject) => {
         try {
-            if (!data.email || !data.doctorId || !data.timeType || !data.date || !data.fullName || !data.doctorName) {
+            if (!data.email 
+                || !data.doctorId 
+                || !data.timeType 
+                || !data.date 
+                || !data.firstName 
+                || !data.lastName 
+                || !data.doctorName 
+                || !data.selectedGender 
+                || !data.address) {
                 resolve({
                     errCode: 1,
                     errMessage: 'Missing required parameters!'
@@ -19,61 +27,68 @@ let postBookAppointment = (data) => {
             }
             else {
                 let token = uuidv4();
-                await emailService.sendSimpleEmail({
-                    receiveEmail: data.email,
-                    patientName: data.fullName,
-                    time: data.timeString,
-                    doctorName: data.doctorName,
-                    language: data.language,
-                    redirectLink: buildUrlEmail(data.doctorId, token)
-                });
 
-                //upSert patient
-                let user = await db.User.findOrCreate({
+                // upsert patient (identify by email)
+                let [user, userCreated] = await db.User.findOrCreate({
                     where: { email: data.email },
                     defaults: {
                         email: data.email,
                         roleId: 'R3',
+                        gender: data.selectedGender,
+                        address: data.address,
+                        firstName: data.firstName,
+                        lastName: data.lastName
                     }
-                })
+                });
 
-                //create a booking record
-                if (user && user[0]) {
-                    let booking = await db.Booking.findOrCreate({
-                        where: { patientId: user[0].id },
+                // create a booking record for the specific slot (patientId + doctorId + date + timeType)
+                if (user && user.id) {
+                    let [booking, bookingCreated] = await db.Booking.findOrCreate({
+                        where: {
+                            patientId: user.id,
+                            doctorId: data.doctorId,
+                            date: data.date,
+                            timeType: data.timeType
+                        },
                         defaults: {
                             statusId: 'S1',
                             doctorId: data.doctorId,
-                            patientId: user[0].id,
+                            patientId: user.id,
                             date: data.date,
                             timeType: data.timeType,
                             token: token
                         }
                     });
-                    // console.log("check booking: ", booking[1]);
-                    // if (booking && booking[1] === false && booking[0].date === data.date && booking[0].timeType === data.timeType && booking[0].doctorId === data.doctorId) {
-                    //     resolve({
-                    //         errCode: 2,
-                    //         errMessage: 'You have already booked an appointment!'
-                    //     })
-                    // }
-                    // else if(booking && booking[1] === false && booking[0].date === data.date && booking[0].timeType === data.timeType && booking[0].doctorId !== data.doctorId) {
-                    //     resolve({
-                    //         errCode: 3,
-                    //         errMessage: 'You have already booked an appointment for a different doctor!'
-                    //     })
-                    // }
-                    // else if(booking && booking[1] === false && booking[0].date === data.date && booking[0].timeType !== data.timeType) {
-                    //     resolve({
-                    //         errCode: 4,
-                    //         errMessage: 'You have already booked an appointment for a different time!'
-                    //     })
-                    // }
+
+                    if (!bookingCreated) {
+                        resolve({
+                            errCode: 2,
+                            errMessage: 'You have already booked this slot!'
+                        });
+                        return;
+                    }
+
+                    // send email after booking created to avoid sending email on DB failure
+                    await emailService.sendSimpleEmail({
+                        receiveEmail: data.email,
+                        patientName: `${data.firstName} ${data.lastName}`,
+                        time: data.timeString,
+                        doctorName: data.doctorName,
+                        language: data.language,
+                        redirectLink: buildUrlEmail(data.doctorId, token)
+                    });
+
+                    resolve({
+                        errCode: 0,
+                        errMessage: 'Appointment booked successfully!'
+                    });
+                    return;
                 }
 
+                // fallback: should not reach here normally
                 resolve({
-                    errCode: 0,
-                    errMessage: 'Appointment booked successfully!'
+                    errCode: 3,
+                    errMessage: 'Could not create booking.'
                 });
             }
         } catch (e) {
