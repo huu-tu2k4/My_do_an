@@ -3,6 +3,9 @@ import clinicService from '../services/clinicService';
 let createClinic = async (req, res) => {
     try {
         let info = await clinicService.createClinic(req.body);
+        if (info && info.errCode === 1) {
+            return res.status(400).json(info);
+        }
         return res.status(200).json(info);
     } catch (e) {
         console.error(e);

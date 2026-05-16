@@ -10,7 +10,7 @@ let getTopDoctorHome = async (req, res) => {
     }
     catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -23,7 +23,7 @@ let getAllDoctors = async (req, res) => {
         return res.status(200).json(doctors);
     } catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -33,10 +33,13 @@ let getAllDoctors = async (req, res) => {
 let postInforDoctor = async (req, res) => {
     try {
         let response = await doctorService.postInforDoctor(req.body);
+        if (response && response.errCode === 1) {
+            return res.status(400).json(response);
+        }
         return res.status(200).json(response);
     } catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -49,7 +52,7 @@ let getDetailDoctorById = async (req, res) => {
         return res.status(200).json(infor);
     } catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -59,10 +62,29 @@ let getDetailDoctorById = async (req, res) => {
 let bulkCreateSchedule = async (req, res) => {
     try {
         let response = await doctorService.bulkCreateSchedule(req.body);
+        if (response && response.errCode === 1) {
+            return res.status(400).json(response);
+        }
         return res.status(200).json(response);
     } catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
+            errCode: -1,
+            errMessage: 'Error from server ...'
+        })
+    }
+}
+
+let editBulkSchedule = async (req, res) => {
+    try {
+        let response = await doctorService.editBulkSchedule(req.body);
+        if (response && response.errCode === 1) {
+            return res.status(400).json(response);
+        }
+        return res.status(200).json(response);
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -76,7 +98,7 @@ let getScheduleByDate = async (req, res) => {
     }
     catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -89,7 +111,7 @@ let getExtraInforDoctorById = async (req, res) => {
         return res.status(200).json(infor);
     } catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -102,7 +124,7 @@ let getProfileDoctorById = async (req, res) => {
         return res.status(200).json(infor);
     } catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -115,7 +137,7 @@ let getListPatientForDoctor = async (req, res) => {
         return res.status(200).json(infor);
     } catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -125,11 +147,14 @@ let getListPatientForDoctor = async (req, res) => {
 let sendRemedy = async (req, res) => {
     try {
         let infor = await doctorService.sendRemedy(req.body);
+        if (infor && infor.errCode === 1) {
+            return res.status(400).json(infor);
+        }
         return res.status(200).json(infor);
     }
     catch (e) {
         console.log(e);
-        return res.status(200).json({
+        return res.status(500).json({
             errCode: -1,
             errMessage: 'Error from server ...'
         })
@@ -142,6 +167,7 @@ module.exports = {
     postInforDoctor: postInforDoctor,
     getDetailDoctorById: getDetailDoctorById,
     bulkCreateSchedule: bulkCreateSchedule,
+    editBulkSchedule: editBulkSchedule,
     getScheduleByDate: getScheduleByDate,
     getExtraInforDoctorById: getExtraInforDoctorById,
     getProfileDoctorById: getProfileDoctorById,

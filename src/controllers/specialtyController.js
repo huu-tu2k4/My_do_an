@@ -3,7 +3,10 @@ import specialtyService from '../services/specialtyService';
 let createSpecialty = async (req, res) => {
     try {
         const response = await specialtyService.createSpecialty(req.body);
-        res.status(200).json(response);
+        if (response && response.errCode === 1) {
+            return res.status(400).json(response);
+        }
+        return res.status(200).json(response);
     } catch (err) {
         res.status(500).json({ 
             errCode: -1,

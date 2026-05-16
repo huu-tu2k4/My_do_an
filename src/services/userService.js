@@ -2,6 +2,15 @@ import { where } from "sequelize";
 import db from "../models/index";
 import bcrypt from 'bcryptjs';
 import { raw } from "body-parser";
+import jwt from 'jsonwebtoken';
+import { addRefreshToken, removeRefreshToken, findByToken } from './tokenStore';
+
+require('dotenv').config();
+
+const jwtSecret = process.env.JWT_SECRET;
+const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
+const jwtExpire = process.env.JWT_EXPIRE;
+const jwtRefreshExpire = process.env.JWT_REFRESH_EXPIRE;
 
 const salt = bcrypt.genSaltSync(10);
 
@@ -16,12 +25,25 @@ let handleUserLogin = (email, password) => {
                     attributes: ['id', 'email', 'roleId', 'password', 'firstName', 'lastName']
                 });
                 if(user){
-                    let check = await bcrypt.compareSync(password, user.password);
+                    let check = await bcrypt.compare(password, user.password);
                     if(check){
                         userData.errCode = 0;
                         userData.errMessage = 'OK';
                         delete user.password;
                         userData.user = user;
+                        try {
+                            const payload = { id: user.id, email: user.email, roleId: user.roleId };
+                            const token = jwt.sign(payload, jwtSecret, { expiresIn: jwtExpire });
+                            // refresh token
+                            const refreshToken = jwt.sign({ id: user.id }, jwtRefreshSecret, { expiresIn: jwtRefreshExpire });
+                            // store refresh token in in-memory store for revocation support
+                            const expiresAt = Date.now() + (7 * 24 * 60 * 60 * 1000);
+                            await addRefreshToken(refreshToken, user.id, expiresAt);
+                            userData.token = token;
+                            userData.refreshToken = refreshToken;
+                        } catch (err) {
+                            // ignore token error, still return user data
+                        }
                     }
                     else{
                         userData.errCode = 3;
@@ -249,8 +271,43 @@ let getAllCodeService = (typeInput) => {
     })
 }
 
+let verifyAndRefreshToken = async (refreshToken) => {
+    return new Promise(async (resolve, reject) => {
+            try {
+            const stored = await findByToken(refreshToken);
+            if (!stored) {
+                return resolve({ errCode: 1, errMessage: 'Refresh token not found' });
+            }
+            jwt.verify(refreshToken, jwtRefreshSecret, async (err, decoded) => {
+                if (err) return resolve({ errCode: 1, errMessage: 'Invalid refresh token' });
+                // create new access token
+                const user = await db.User.findOne({ where: { id: decoded.id }, attributes: ['id','email','roleId'] });
+                if (!user) return resolve({ errCode: 2, errMessage: 'User not found' });
+                const payload = { id: user.id, email: user.email, roleId: user.roleId };
+                const token = jwt.sign(payload, jwtSecret, { expiresIn: jwtExpire });
+                resolve({ errCode: 0, token });
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
+let revokeRefreshToken = async (refreshToken) => {
+    return new Promise(async (resolve) => {
+        try {
+            const removed = await removeRefreshToken(refreshToken);
+            resolve({ errCode: 0, removed });
+        } catch (e) {
+            resolve({ errCode: 1, errMessage: 'Error revoking' });
+        }
+    });
+}
+
 module.exports = {
     handleUserLogin: handleUserLogin,
+    verifyAndRefreshToken: verifyAndRefreshToken,
+    revokeRefreshToken: revokeRefreshToken,
     getAllUsers: getAllUsers,
     createNewUser: createNewUser,
     deleteUser: deleteUser,
