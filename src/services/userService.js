@@ -93,7 +93,12 @@ let getAllUsers = (userId) => {
             if(userId === 'ALL'){
                 user = await db.User.findAll({
                     attributes: {exclude: ['password']},
-                    raw: true
+                    include: [
+                        {model: db.Allcode, as: 'positionData', attributes: ['valueEn', 'valueVi']},
+                        {model: db.Allcode, as: 'roleData', attributes: ['valueEn', 'valueVi']}
+                    ],
+                    raw: true,
+                    nest: true
                 });
             }
             if(userId && userId !== 'ALL'){

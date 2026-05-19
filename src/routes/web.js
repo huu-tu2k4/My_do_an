@@ -6,6 +6,7 @@ import patientController from "../controllers/patientController";
 import specialtyController from "../controllers/specialtyController";
 import clinicController from "../controllers/clinicController";
 import handbookController from "../controllers/handbookController";
+import searchController from "../controllers/searchController";
 import authenticateToken from "../middleware/authMiddleware";
 import authorizeRoles from "../middleware/roleMiddleware";
 import { ROLES } from "../config/roles";
@@ -54,6 +55,9 @@ let initWebRoutes = (app) => {
     router.post('/api/create-new-clinic', authenticateToken, authorizeRoles(ROLES.ADMIN), clinicController.createClinic);
     router.get('/api/get-clinic', clinicController.getAllClinic);
     router.get('/api/get-detail-clinic-by-id', clinicController.getDetailClinicById);
+
+    // Search endpoint (search by doctor name or specialty)
+    router.get('/api/search', searchController.search);
 
     // Handbook categories
     router.get('/api/handbook/categories', handbookController.getAllCategories);
