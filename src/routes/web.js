@@ -7,6 +7,7 @@ import specialtyController from "../controllers/specialtyController";
 import clinicController from "../controllers/clinicController";
 import handbookController from "../controllers/handbookController";
 import searchController from "../controllers/searchController";
+import aiController from "../controllers/aiController";
 import authenticateToken from "../middleware/authMiddleware";
 import authorizeRoles from "../middleware/roleMiddleware";
 import { ROLES } from "../config/roles";
@@ -59,6 +60,8 @@ let initWebRoutes = (app) => {
     // Search endpoint (search by doctor name or specialty)
     router.get('/api/search', searchController.search);
 
+    //ai routes
+    router.post('/api/suggest-specialty', aiController.suggestSpecialty);
     // Handbook categories
     router.get('/api/handbook/categories', handbookController.getAllCategories);
     router.get('/api/handbook/categories/:id', handbookController.getCategoryById);
