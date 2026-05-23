@@ -1,17 +1,25 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-const dbName = process.env.DB_NAME || 'bookingcaredb';
-const dbUser = process.env.DB_USERNAME || 'root';
-const dbPass = process.env.DB_PASSWORD || null;
-const dbHost = process.env.DB_HOST || 'localhost';
-const dbDialect = process.env.DB_DIALECT || 'mysql';
+const dbName = process.env.DB_NAME;
+const dbUser = process.env.DB_USERNAME;
+const dbPass = process.env.DB_PASSWORD;
+const dbHost = process.env.DB_HOST;
+const dbDialect = process.env.DB_DIALECT;
+const dbSSL = process.env.DB_SSL;
+const dbPort = process.env.DB_PORT;
 
 const sequelize = new Sequelize(dbName, dbUser, dbPass, {
     host: dbHost,
+    port: dbPort,
     dialect: dbDialect,
-    logging: process.env.DB_LOGGING === 'true' ? console.log : false,
-    timezone: process.env.DB_TIMEZONE || '+07:00'
+    logging: false,
+    dialectOptions: {
+        ssl: dbSSL === 'true' ? {
+            require: true,
+            rejectUnauthorized: false
+        } : false
+    }
 });
 
 let connectDB = async () => {

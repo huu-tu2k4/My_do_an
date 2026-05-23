@@ -24,6 +24,7 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'Markdown',          
+    tableName: 'Markdowns',
   });
   return Markdown;
 };
