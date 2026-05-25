@@ -7,58 +7,50 @@ const path = require('path');
 const Sequelize = require('sequelize');
 const basename = path.basename(__filename);
 const env = process.env.NODE_ENV || 'development';
-const config = require(__dirname + '/../config/config.js')[env];
 const db = {};
 
-const dbHost = process.env.DB_HOST;
-const dbDialect = process.env.DB_DIALECT;
-const dbSSL = process.env.DB_SSL;
-const dbPort = process.env.DB_PORT;
-
-const customizeConfig = {
-  host: dbHost,
-  port: dbPort,
-  dialect: dbDialect,
-  logging: false,
-  dialectOptions: {
-    ssl: dbSSL === 'true' ? {
-      require: true,
-      rejectUnauthorized: false
-    } : false
-  }
-};
-
-let sequelize;
-if (config.use_env_variable) {
-  sequelize = new Sequelize(process.env[config.use_env_variable], config);
-} else {
-  sequelize = new Sequelize(config.database, config.username, config.password, customizeConfig);
-}
+// === SỬ DỤNG DATABASE_URL - CÁCH TỐT NHẤT CHO SUPABASE ===
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    logging: false,
+    dialectOptions: {
+        ssl: {
+            require: true,
+            rejectUnauthorized: false
+        }
+    },
+    pool: {
+        max: 10,
+        min: 0,
+        acquire: 30000,
+        idle: 10000
+    }
+});
 
 // verify DB connection early and log helpful error if it fails
 (async () => {
-  try {
-    await sequelize.authenticate();
-    console.info('Database connection has been established successfully.');
-  } catch (error) {
-    console.error('Unable to connect to the database:', error && error.stack ? error.stack : error);
-  }
+    try {
+        await sequelize.authenticate();
+        console.info('✅ Database connection has been established successfully.');
+    } catch (error) {
+        console.error('❌ Unable to connect to the database:', error && error.stack ? error.stack : error);
+    }
 })();
 
 fs
-  .readdirSync(__dirname)
-  .filter(file => {
-    return (file.indexOf('.') !== 0) && (file !== basename) && (file.slice(-3) === '.js');
-  })
-  .forEach(file => {
-    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
-    db[model.name] = model;
-  });
+    .readdirSync(__dirname)
+    .filter(file => {
+        return (file.indexOf('.') !== 0) && (file !== basename) && (file.slice(-3) === '.js');
+    })
+    .forEach(file => {
+        const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
+        db[model.name] = model;
+    });
 
 Object.keys(db).forEach(modelName => {
-  if (db[modelName].associate) {
-    db[modelName].associate(db);
-  }
+    if (db[modelName].associate) {
+        db[modelName].associate(db);
+    }
 });
 
 db.sequelize = sequelize;
