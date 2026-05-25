@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon --exec babel-node src/server.js"
+    "dev": "nodemon --exec babel-node src/server.js",
+    "build": "babel src --out-dir dist --copy-files",
+    "start": "node dist/server.js"
   },
   "keywords": [
     "fullstack"
@@ -33,9 +35,10 @@
     "uuid": "8.3.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.10",
+    "@babel/cli": "^7.28.6",
+    "@babel/core": "^7.29.0",
     "@babel/node": "^7.12.10",
-    "@babel/preset-env": "^7.12.10",
+    "@babel/preset-env": "^7.29.5",
     "nodemon": "^2.0.7",
     "sequelize-cli": "^6.2.0"
   }
