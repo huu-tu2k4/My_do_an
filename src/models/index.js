@@ -35,6 +35,16 @@ if (config.use_env_variable) {
   sequelize = new Sequelize(config.database, config.username, config.password, customizeConfig);
 }
 
+// verify DB connection early and log helpful error if it fails
+(async () => {
+  try {
+    await sequelize.authenticate();
+    console.info('Database connection has been established successfully.');
+  } catch (error) {
+    console.error('Unable to connect to the database:', error && error.stack ? error.stack : error);
+  }
+})();
+
 fs
   .readdirSync(__dirname)
   .filter(file => {

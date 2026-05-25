@@ -37,7 +37,8 @@ let postBookAppointment = (data) => {
                         gender: data.selectedGender,
                         address: data.address,
                         firstName: data.firstName,
-                        lastName: data.lastName
+                        lastName: data.lastName,
+                        phoneNumber: data.phoneNumber
                     }
                 });
 
@@ -47,14 +48,14 @@ let postBookAppointment = (data) => {
                         where: {
                             patientId: user.id,
                             doctorId: data.doctorId,
-                            date: data.date,
+                            date: String(data.date),
                             timeType: data.timeType
                         },
                         defaults: {
                             statusId: 'S1',
                             doctorId: data.doctorId,
                             patientId: user.id,
-                            date: data.date,
+                            date: String(data.date),
                             timeType: data.timeType,
                             token: token
                         }

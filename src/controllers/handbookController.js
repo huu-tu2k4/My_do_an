@@ -17,8 +17,8 @@ let getAllCategories = async (req, res) => {
         const response = await handbookService.getAllCategories();
         res.status(200).json(response);
     } catch (err) {
-        console.error('getAllCategories error:', err);
-        res.status(500).json({ errCode: -1, errMessage: err.message || 'Error from the server...' });
+        console.error('getAllCategories error:', err && err.stack ? err.stack : err);
+        res.status(500).json({ errCode: -1, errMessage: err && err.message ? err.message : 'Error from the server...' });
     }
 }
 

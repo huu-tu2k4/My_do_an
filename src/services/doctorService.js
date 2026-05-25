@@ -220,6 +220,8 @@ let bulkCreateSchedule = (data) => {
                 if(schedule && schedule.length > 0) {
                     schedule = schedule.map(item => {
                         item.maxNumber = MAX_NUMBER_SCHEDULE;
+                        // ensure timeType is stored as string to match Allcode.keyMap (varchar)
+                        if (item.timeType !== undefined && item.timeType !== null) item.timeType = String(item.timeType);
                         return item;
                     });
                 }
@@ -231,7 +233,7 @@ let bulkCreateSchedule = (data) => {
                     let existing = await db.Schedule.findAll({
                         where: {
                             doctorId: data.doctorId,
-                            date: data.date
+                            date: String(data.date)
                         },
                         attributes: ['id', 'timeType', 'date', 'doctorId', 'maxNumber'],
                         raw: true,
@@ -295,6 +297,8 @@ let editBulkSchedule = (data) => {
                 if(schedule && schedule.length > 0) {
                     schedule = schedule.map(item => {
                         item.maxNumber = MAX_NUMBER_SCHEDULE;
+                        // ensure timeType is stored as string to match Allcode.keyMap (varchar)
+                        if (item.timeType !== undefined && item.timeType !== null) item.timeType = String(item.timeType);
                         return item;
                     });
                 }
@@ -307,7 +311,7 @@ let editBulkSchedule = (data) => {
                     let existing = await db.Schedule.findAll({
                         where: {
                             doctorId: data.doctorId,
-                            date: data.date
+                            date: String(data.date)
                         },
                         attributes: ['id', 'timeType', 'date', 'doctorId', 'maxNumber'],
                         raw: true,
@@ -367,7 +371,7 @@ let getScheduleByDateService = (doctorId, date) => {
             }
             else{
                 let data = await db.Schedule.findAll({
-                    where: { doctorId: doctorId, date: date },
+                    where: { doctorId: doctorId, date: String(date) },
                     include: [
                         { model: db.Allcode, as: 'timeTypeData', attributes: ['valueEn', 'valueVi'] },
                         { model: db.User, as: 'doctorData', attributes: ['firstName', 'lastName'] },
@@ -481,10 +485,10 @@ let getListPatientForDoctor = (doctorId, date) => {
             else{
                 let data = await db.Booking.findAll({
                     where: { doctorId: doctorId,
-                            date: date, 
-                            statusId: 'S2' },
+                        date: String(date), 
+                        statusId: 'S2' },
                     include: [
-                        { model: db.User, as: 'patientData', attributes: ['email', 'firstName', 'lastName', 'address', 'gender'],
+                        { model: db.User, as: 'patientData', attributes: ['email', 'firstName', 'lastName', 'address', 'gender', 'phoneNumber'],
                             include: [
                                 { model: db.Allcode, as: 'genderData', attributes: ['valueEn', 'valueVi'] }
                             ]
