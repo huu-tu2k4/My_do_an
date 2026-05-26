@@ -18,6 +18,13 @@ if (!hasResendKey) console.warn('[emailService] Warning: RESEND_API_KEY is missi
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Build a valid `from` field: "Name <email@example.com>"
+const fromEmail = process.env.EMAIL_APP || process.env.FROM_EMAIL || '';
+const fromName = process.env.EMAIL_FROM_NAME || 'Admin Booking Care';
+const fromField = fromEmail && fromEmail.includes('@') ? `${fromName} <${fromEmail}>` : `${fromName} <no-reply@example.com>`;
+console.log('[emailService] using FROM field masked:', maskKey(fromField));
+if (!fromEmail) console.warn('[emailService] Warning: EMAIL_APP (from email) is missing; using no-reply placeholder');
+
 const sendSimpleEmail = async (dataSend) => {
     try {
         const preview = {
@@ -32,7 +39,7 @@ const sendSimpleEmail = async (dataSend) => {
         console.log('[sendSimpleEmail] sending email preview:', preview);
 
         const { data, error } = await resend.emails.send({
-            from: 'Admin Booking Care', // Thay bằng email bạn verify trên Resend
+            from: fromField,
             to: dataSend.receiveEmail,
             subject: dataSend.subject || "Thông tin lịch khám",
             html: getBodyHTMLEmailRemedy(dataSend, ''),
@@ -68,7 +75,7 @@ const sendAttachment = async (dataSend) => {
         const filename = `remedy-${dataSend.patientId}-${new Date().getTime()}.png`;
 
         const { data, error } = await resend.emails.send({
-            from: 'Admin Booking Care',
+            from: fromField,
             to: dataSend.email,
             subject: dataSend.subject || "Thông tin hóa đơn",
             html: getBodyHTMLEmailRemedy(dataSend, 'Remedy'),
