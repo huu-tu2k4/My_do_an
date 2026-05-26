@@ -1,60 +1,101 @@
 import { Resend } from 'resend';
 require('dotenv').config();
 
+const maskKey = (key) => {
+    if (!key) return '<<missing>>';
+    if (key.length <= 8) return '****';
+    return `${key.slice(0, 4)}...${key.slice(-4)}`;
+};
+
+console.log('[emailService] initializing', {
+    NODE_ENV: process.env.NODE_ENV || 'unknown',
+    PORT: process.env.PORT || 'unknown'
+});
+
+const hasResendKey = !!process.env.RESEND_API_KEY;
+console.log('[emailService] RESEND_API_KEY present:', hasResendKey, 'masked:', maskKey(process.env.RESEND_API_KEY));
+if (!hasResendKey) console.warn('[emailService] Warning: RESEND_API_KEY is missing - emails will fail');
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendSimpleEmail = async (dataSend) => {
     try {
+        const preview = {
+            to: dataSend?.receiveEmail,
+            subject: dataSend?.subject || 'Thông tin lịch khám',
+            language: dataSend?.language,
+            time: dataSend?.time,
+            doctorName: dataSend?.doctorName,
+            hasRedirectLink: !!dataSend?.redirectLink,
+            htmlLength: (getBodyHTMLEmailRemedy(dataSend, '') || '').length,
+        };
+        console.log('[sendSimpleEmail] sending email preview:', preview);
+
         const { data, error } = await resend.emails.send({
-            from: 'Admin Booking Care <onboarding@resend.dev>', // Thay bằng email bạn verify trên Resend
+            from: 'Admin Booking Care', // Thay bằng email bạn verify trên Resend
             to: dataSend.receiveEmail,
-            subject: "Thông tin lịch khám",
+            subject: dataSend.subject || "Thông tin lịch khám",
             html: getBodyHTMLEmailRemedy(dataSend, ''),
         });
 
         if (error) {
-            console.error("Resend Error:", error);
+            console.error('[sendSimpleEmail] Resend returned error:', error);
             throw error;
         }
 
-        console.log('✅ Email sent successfully:', data.id);
+        console.log('[sendSimpleEmail] ✅ Email sent successfully, id:', data?.id, 'raw:', data);
         return data;
     } catch (err) {
-        console.error("Error while sending mail (sendSimpleEmail):", err);
+        console.error('[sendSimpleEmail] Error while sending mail:', err?.message || err, err);
         throw err;
     }
 };
 
 const sendAttachment = async (dataSend) => {
     try {
+        const imgBase64 = dataSend?.imgBase64 || '';
+        const base64Part = imgBase64.split('base64,')[1] || imgBase64;
+        let attachmentSize = 0;
+        try {
+            // approximate size in bytes
+            attachmentSize = Math.ceil((base64Part.length * 3) / 4);
+        } catch (e) {
+            attachmentSize = 0;
+        }
+
+        console.log('[sendAttachment] preparing to send attachment to:', dataSend?.email, 'patientId:', dataSend?.patientId, 'attachmentBytesApprox:', attachmentSize);
+
+        const filename = `remedy-${dataSend.patientId}-${new Date().getTime()}.png`;
+
         const { data, error } = await resend.emails.send({
-            from: 'Admin Booking Care <onboarding@resend.dev>',
+            from: 'Admin Booking Care',
             to: dataSend.email,
-            subject: "Thông tin hóa đơn",
+            subject: dataSend.subject || "Thông tin hóa đơn",
             html: getBodyHTMLEmailRemedy(dataSend, 'Remedy'),
             attachments: [
                 {
-                    filename: `remedy-${dataSend.patientId}-${new Date().getTime()}.png`,
-                    content: dataSend.imgBase64.split("base64,")[1],
+                    filename,
+                    content: base64Part,
                     encoding: 'base64'
                 }
             ]
         });
 
         if (error) {
-            console.error("Resend Error:", error);
+            console.error('[sendAttachment] Resend returned error:', error);
             throw error;
         }
 
-        console.log('✅ Attachment email sent successfully:', data.id);
+        console.log('[sendAttachment] ✅ Attachment email sent successfully, id:', data?.id, 'raw:', data);
         return data;
     } catch (err) {
-        console.error("Error while sending mail (sendAttachment):", err);
+        console.error('[sendAttachment] Error while sending mail:', err?.message || err, err);
         throw err;
     }
 };
 
 let getBodyHTMLEmailRemedy = (dataSend, type) => {
+    console.log('[getBodyHTMLEmailRemedy] building body, type:', type, 'language:', dataSend?.language);
     let result = '';
     if (type === '') {
         if (dataSend.language === 'vi') {
