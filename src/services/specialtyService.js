@@ -68,6 +68,7 @@ let getDetailSpecialtyById = async (inputId, location) => {
                     attributes: ['descriptionHTML', 'descriptionMarkdown', 'nameVi', 'nameEn']
                 });
                 if (data) {
+                    data = data.get({ plain: true });
                     let doctorSpecialty = [];
                     if (location === 'ALL') {
                         doctorSpecialty = await db.Doctor_Infor.findAll({

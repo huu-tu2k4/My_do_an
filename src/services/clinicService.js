@@ -66,8 +66,9 @@ let getDetailClinicById = async (inputId) => {
                     attributes: ['name', 'address', 'descriptionHTML', 'descriptionMarkdown'],
                 });
                 if (data) {
-                    let doctorClinic = [];
-                    doctorClinic = await db.Doctor_Infor.findAll({
+                    // convert Sequelize instance to plain object so extra fields are included in JSON
+                    data = data.get({ plain: true });
+                    const doctorClinic = await db.Doctor_Infor.findAll({
                         where: { clinicId: inputId },
                         attributes: ['doctorId', 'provinceId']
                     });
