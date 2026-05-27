@@ -27,7 +27,6 @@ const smtpSecure = process.env.SMTP_SECURE === 'true';
 const smtpUser = process.env.SMTP_USER || '';
 const smtpPass = process.env.SMTP_PASS || '';
 const hasSmtp = !!(smtpHost && smtpPort && smtpUser && smtpPass);
-console.log('[emailService] SMTP present:', hasSmtp, 'host:', smtpHost || 'none', 'port:', smtpPort || 'none');
 if (!hasSmtp) console.warn('[emailService] Warning: SMTP credentials missing - Nodemailer will be unavailable');
 
 let transporter = null;
@@ -39,7 +38,6 @@ if (hasSmtp) {
         auth: { user: smtpUser, pass: smtpPass }
     });
     transporter.verify()
-        .then(() => console.log('[emailService] SMTP transporter verified'))
         .catch(err => console.warn('[emailService] SMTP transporter verify failed', err?.message || err));
 }
 
@@ -55,11 +53,13 @@ console.log('[emailService] using FROM field masked:', maskKey(fromField));
 if (!fromEmail) console.warn('[emailService] Warning: EMAIL_APP (from email) is missing; using no-reply placeholder');
 
 const sendViaResend = async (dataSend, type = '') => {
+    const html = getBodyHTMLEmailRemedy(dataSend, type);
+    console.log('[sendViaResend] sending', { type, to: dataSend.receiveEmail || dataSend.email, subject: dataSend.subject, htmlLength: (html || '').length });
     const { data, error } = await resend.emails.send({
         from: fromField,
         to: dataSend.receiveEmail || dataSend.email,
         subject: dataSend.subject || (type === 'Remedy' ? "Thông tin hóa đơn" : "Thông tin lịch khám"),
-        html: getBodyHTMLEmailRemedy(dataSend, type),
+        html: html,
     });
     if (error) {
         const e = new Error('Resend send failed');
@@ -71,41 +71,49 @@ const sendViaResend = async (dataSend, type = '') => {
 
 const sendViaNodemailer = async (dataSend, type = '') => {
     if (!transporter) throw new Error('SMTP transporter not configured');
+    const html = getBodyHTMLEmailRemedy(dataSend, type);
     const mailOptions = {
         from: fromField,
         to: dataSend.receiveEmail || dataSend.email,
         subject: dataSend.subject || (type === 'Remedy' ? "Thông tin hóa đơn" : "Thông tin lịch khám"),
-        html: getBodyHTMLEmailRemedy(dataSend, type),
+        html: html,
     };
     const info = await transporter.sendMail(mailOptions);
     return info;
 };
 
 const sendSimpleEmail = async (dataSend) => {
+    const emailType = dataSend?.type || '';
     const preview = {
         to: dataSend?.receiveEmail || dataSend?.email,
         subject: dataSend?.subject || 'Thông tin lịch khám',
+        type: emailType,
         language: dataSend?.language,
         time: dataSend?.time,
         doctorName: dataSend?.doctorName,
         hasRedirectLink: !!dataSend?.redirectLink,
-        htmlLength: (getBodyHTMLEmailRemedy(dataSend, '') || '').length,
+        htmlLength: (getBodyHTMLEmailRemedy(dataSend, emailType) || '').length,
     };
     console.log('[sendSimpleEmail] sending email preview:', preview);
+    // log generated body for debugging
+    try {
+        const debugHtml = getBodyHTMLEmailRemedy(dataSend, emailType) || '';
+        console.log('[sendSimpleEmail] debug body snippet:', debugHtml.substring(0, 300));
+    } catch (err) {
+        console.warn('[sendSimpleEmail] error generating debug body', err?.message || err);
+    }
 
     // Decide provider behavior based on EMAIL_PROVIDER
     if (emailProvider === 'resend') {
         if (!(hasResendKey && resend)) throw new Error('Resend provider selected but RESEND_API_KEY missing');
-            const emailType = dataSend?.type || '';
-            preview.type = emailType;
-        const result = await sendViaResend(dataSend, '');
+        const result = await sendViaResend(dataSend, emailType);
         console.log('[sendSimpleEmail] ✅ Resend sent, id:', result?.id || result);
         return result;
     }
 
     if (emailProvider === 'smtp') {
         if (!hasSmtp) throw new Error('SMTP provider selected but SMTP_* env vars missing');
-        const result = await sendViaNodemailer(dataSend, '');
+        const result = await sendViaNodemailer(dataSend, emailType);
         console.log('[sendSimpleEmail] ✅ SMTP sent, info:', result);
         return result;
     }
@@ -114,7 +122,7 @@ const sendSimpleEmail = async (dataSend) => {
     if (emailProvider === 'auto') {
         if (hasResendKey && resend) {
             try {
-                const result = await sendViaResend(dataSend, '');
+                const result = await sendViaResend(dataSend, emailType);
                 console.log('[sendSimpleEmail] ✅ Resend sent, id:', result?.id || result);
                 return result;
             } catch (err) {
@@ -122,14 +130,14 @@ const sendSimpleEmail = async (dataSend) => {
                 // if authentication error (401) or other, fallback to SMTP when available
                 const status = err?.raw?.statusCode || err?.statusCode || null;
                 if (hasSmtp && (status === 401 || status === 403 || true)) {
-                    return await sendViaNodemailer(dataSend, '');
+                    return await sendViaNodemailer(dataSend, emailType);
                 }
                 throw err;
             }
         }
 
         if (hasSmtp) {
-            const result = await sendViaNodemailer(dataSend, '');
+            const result = await sendViaNodemailer(dataSend, emailType);
             console.log('[sendSimpleEmail] ✅ SMTP sent, info:', result);
             return result;
         }
@@ -279,36 +287,36 @@ const getBodyHTMLEmailRemedy = (dataSend, type) => {
                 <p>Best regards!</p>
             `;
         }
-        } else if (type === 'Cancel') {
-            // Cancellation email body
-            const reasonText = dataSend.cancelReason ? (dataSend.language === 'vi' ? `Lý do: ${dataSend.cancelReason}` : `Reason: ${dataSend.cancelReason}`) : '';
-            if (dataSend.language === 'vi') {
-                result = `
-                    <h3>Xin chào ${dataSend.patientName}!</h3>
-                    <p>Rất tiếc, lịch khám của bạn đã bị hủy bởi bác sĩ.</p>
-                    <p>Thông tin lịch hủy:</p>
-                    <ul>
-                        <li>Thời gian: ${dataSend.timeString}</li>
-                        <li>Bác sĩ: ${dataSend.doctorName}</li>
-                    </ul>
-                    <p>${reasonText}</p>
-                    <p>Vui lòng liên hệ phòng khám để sắp xếp lại lịch khám nếu cần.</p>
-                    <p>Xin chân thành cảm ơn!</p>
-                `;
-            } else {
-                result = `
-                    <h3>Dear ${dataSend.patientName}!</h3>
-                    <p>We are sorry to inform you that your appointment has been cancelled by the doctor.</p>
-                    <p>Cancellation details:</p>
-                    <ul>
-                        <li>Time: ${dataSend.time}</li>
-                        <li>Doctor: ${dataSend.doctorName}</li>
-                    </ul>
-                    <p>${reasonText}</p>
-                    <p>Please contact the clinic to reschedule if needed.</p>
-                    <p>Best regards!</p>
-                `;
-            }
+    } else if (type === 'Cancel') {
+        // Cancellation email body
+        const reasonText = dataSend.cancelReason ? (dataSend.language === 'vi' ? `Lý do: ${dataSend.cancelReason}` : `Reason: ${dataSend.cancelReason}`) : '';
+        if (dataSend.language === 'vi') {
+            result = `
+                <h3>Xin chào ${dataSend.patientName}!</h3>
+                <p>Rất tiếc, lịch khám của bạn đã bị hủy bởi bác sĩ.</p>
+                <p>Thông tin lịch hủy:</p>
+                <ul>
+                    <li>Thời gian: ${dataSend.timeString}</li>
+                    <li>Bác sĩ: ${dataSend.doctorName}</li>
+                </ul>
+                <p>${reasonText}</p>
+                <p>Vui lòng liên hệ phòng khám để sắp xếp lại lịch khám nếu cần.</p>
+                <p>Xin chân thành cảm ơn!</p>
+            `;
+        } else {
+            result = `
+                <h3>Dear ${dataSend.patientName}!</h3>
+                <p>We are sorry to inform you that your appointment has been cancelled by the doctor.</p>
+                <p>Cancellation details:</p>
+                <ul>
+                    <li>Time: ${dataSend.timeString}</li>
+                    <li>Doctor: ${dataSend.doctorName}</li>
+                </ul>
+                <p>${reasonText}</p>
+                <p>Please contact the clinic to reschedule if needed.</p>
+                <p>Best regards!</p>
+            `;
+        }
     }
     return result;
 };

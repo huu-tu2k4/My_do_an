@@ -161,6 +161,22 @@ let sendRemedy = async (req, res) => {
     }
 }
 
+let cancelAppointment = async (req, res) => {
+    try {
+        let infor = await doctorService.cancelAppointment(req.body);
+        if (infor && infor.errCode === 1) {
+            return res.status(400).json(infor);
+        }
+        return res.status(200).json(infor);
+    }
+    catch (e) {
+        return res.status(500).json({
+            errCode: -1,
+            errMessage: 'Error from server ...'
+        })
+    }
+}
+
 module.exports = {
     getTopDoctorHome: getTopDoctorHome,
     getAllDoctors: getAllDoctors,
@@ -172,6 +188,6 @@ module.exports = {
     getExtraInforDoctorById: getExtraInforDoctorById,
     getProfileDoctorById: getProfileDoctorById,
     getListPatientForDoctor: getListPatientForDoctor,
-    sendRemedy: sendRemedy
-
+    sendRemedy: sendRemedy,
+    cancelAppointment: cancelAppointment
 }

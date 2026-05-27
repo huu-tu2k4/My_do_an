@@ -535,7 +535,13 @@ let sendRemedy = (data) => {
                     appointment.statusId = 'S3';
                     await appointment.save();
                 }
-                await emailService.sendAttachment(data);
+                await emailService.sendAttachment({
+                    ...data,
+                    type: 'Remedy',
+                    patientName: data.patientName || '',
+                    doctorName: data.doctorName || '',
+                    language: data.language || 'en'
+                });
                 resolve({
                     errCode: 0,
                     errMessage: 'OK'
@@ -551,7 +557,6 @@ let sendRemedy = (data) => {
 let cancelAppointment = (data) => {
     return new Promise(async (resolve, reject) => {
         try {
-            console.log('[doctorService.cancelAppointment] called with:', data);
             if(!data.email || !data.doctorId || !data.patientId || !data.timeType) {
                 console.log('[doctorService.cancelAppointment] missing params', data);
                 resolve({
@@ -574,7 +579,6 @@ let cancelAppointment = (data) => {
             if(appointment) {
                 appointment.statusId = 'S4';
                 await appointment.save();
-                console.log('[doctorService.cancelAppointment] appointment updated to S4 for booking id', appointment.id);
             } else {
                 console.log('[doctorService.cancelAppointment] no matching appointment found');
             }
@@ -590,9 +594,9 @@ let cancelAppointment = (data) => {
                     subject: data.subject || (data.language === 'vi' ? 'Thông báo hủy lịch khám' : 'Appointment cancellation'),
                     type: 'Cancel',
                     cancelReason: data.cancelReason || '',
-                    timeString: data.timeString
+                    timeString: data.timeString,
+                    patientName: data.patientName,
                 });
-                console.log('[doctorService.cancelAppointment] cancellation email sent to', data.email);
             } catch (emailErr) {
                 console.error('[doctorService.cancelAppointment] error sending cancellation email:', emailErr);
             }
