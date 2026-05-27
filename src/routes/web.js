@@ -39,6 +39,7 @@ let initWebRoutes = (app) => {
     router.post('/api/edit-bulk-schedule', authenticateToken, authorizeRoles(ROLES.DOCTOR, ROLES.ADMIN), doctorController.editBulkSchedule);
     router.get('/api/get-list-patient-for-doctor', authenticateToken, authorizeRoles(ROLES.DOCTOR), doctorController.getListPatientForDoctor);
     router.post('/api/send-remedy', authenticateToken, authorizeRoles(ROLES.DOCTOR, ROLES.ADMIN), doctorController.sendRemedy);
+    router.post('/api/cancel-appointment', authenticateToken, authorizeRoles(ROLES.DOCTOR, ROLES.ADMIN), doctorController.cancelAppointment);
 
     router.post('/api/patient-book-appointment', patientController.postBookAppointment);
     router.post('/api/verify-book-appointment', patientController.postVerifyBookAppointment);
