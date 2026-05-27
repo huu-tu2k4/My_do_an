@@ -1,5 +1,7 @@
-import { Resend } from 'resend';
+
+const { Resend } = require('resend');
 require('dotenv').config();
+const nodemailer = require('nodemailer');
 
 const maskKey = (key) => {
     if (!key) return '<<missing>>';
@@ -14,9 +16,36 @@ console.log('[emailService] initializing', {
 
 const hasResendKey = !!process.env.RESEND_API_KEY;
 console.log('[emailService] RESEND_API_KEY present:', hasResendKey, 'masked:', maskKey(process.env.RESEND_API_KEY));
-if (!hasResendKey) console.warn('[emailService] Warning: RESEND_API_KEY is missing - emails will fail');
+if (!hasResendKey) console.warn('[emailService] Warning: RESEND_API_KEY is missing - Resend will be unavailable');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = hasResendKey ? new Resend(process.env.RESEND_API_KEY) : null;
+
+// Nodemailer / SMTP setup (optional)
+const smtpHost = process.env.SMTP_HOST || '';
+const smtpPort = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
+const smtpSecure = process.env.SMTP_SECURE === 'true';
+const smtpUser = process.env.SMTP_USER || '';
+const smtpPass = process.env.SMTP_PASS || '';
+const hasSmtp = !!(smtpHost && smtpPort && smtpUser && smtpPass);
+console.log('[emailService] SMTP present:', hasSmtp, 'host:', smtpHost || 'none', 'port:', smtpPort || 'none');
+if (!hasSmtp) console.warn('[emailService] Warning: SMTP credentials missing - Nodemailer will be unavailable');
+
+let transporter = null;
+if (hasSmtp) {
+    transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
+        auth: { user: smtpUser, pass: smtpPass }
+    });
+    transporter.verify()
+        .then(() => console.log('[emailService] SMTP transporter verified'))
+        .catch(err => console.warn('[emailService] SMTP transporter verify failed', err?.message || err));
+}
+
+// Provider selection: 'resend' | 'smtp' | 'auto'
+const emailProvider = (process.env.EMAIL_PROVIDER || 'auto').toLowerCase();
+console.log('[emailService] EMAIL_PROVIDER:', emailProvider);
 
 // Build a valid `from` field: "Name <email@example.com>"
 const fromEmail = process.env.EMAIL_APP || process.env.FROM_EMAIL || '';
@@ -25,86 +54,188 @@ const fromField = fromEmail && fromEmail.includes('@') ? `${fromName} <${fromEma
 console.log('[emailService] using FROM field masked:', maskKey(fromField));
 if (!fromEmail) console.warn('[emailService] Warning: EMAIL_APP (from email) is missing; using no-reply placeholder');
 
+const sendViaResend = async (dataSend, type = '') => {
+    const { data, error } = await resend.emails.send({
+        from: fromField,
+        to: dataSend.receiveEmail || dataSend.email,
+        subject: dataSend.subject || (type === 'Remedy' ? "Thông tin hóa đơn" : "Thông tin lịch khám"),
+        html: getBodyHTMLEmailRemedy(dataSend, type),
+    });
+    if (error) {
+        const e = new Error('Resend send failed');
+        e.raw = error;
+        throw e;
+    }
+    return data;
+};
+
+const sendViaNodemailer = async (dataSend, type = '') => {
+    if (!transporter) throw new Error('SMTP transporter not configured');
+    const mailOptions = {
+        from: fromField,
+        to: dataSend.receiveEmail || dataSend.email,
+        subject: dataSend.subject || (type === 'Remedy' ? "Thông tin hóa đơn" : "Thông tin lịch khám"),
+        html: getBodyHTMLEmailRemedy(dataSend, type),
+    };
+    const info = await transporter.sendMail(mailOptions);
+    return info;
+};
+
 const sendSimpleEmail = async (dataSend) => {
-    try {
-        const preview = {
-            to: dataSend?.receiveEmail,
-            subject: dataSend?.subject || 'Thông tin lịch khám',
-            language: dataSend?.language,
-            time: dataSend?.time,
-            doctorName: dataSend?.doctorName,
-            hasRedirectLink: !!dataSend?.redirectLink,
-            htmlLength: (getBodyHTMLEmailRemedy(dataSend, '') || '').length,
-        };
-        console.log('[sendSimpleEmail] sending email preview:', preview);
+    const preview = {
+        to: dataSend?.receiveEmail || dataSend?.email,
+        subject: dataSend?.subject || 'Thông tin lịch khám',
+        language: dataSend?.language,
+        time: dataSend?.time,
+        doctorName: dataSend?.doctorName,
+        hasRedirectLink: !!dataSend?.redirectLink,
+        htmlLength: (getBodyHTMLEmailRemedy(dataSend, '') || '').length,
+    };
+    console.log('[sendSimpleEmail] sending email preview:', preview);
 
-        const { data, error } = await resend.emails.send({
-            from: fromField,
-            to: dataSend.receiveEmail,
-            subject: dataSend.subject || "Thông tin lịch khám",
-            html: getBodyHTMLEmailRemedy(dataSend, ''),
-        });
+    // Decide provider behavior based on EMAIL_PROVIDER
+    if (emailProvider === 'resend') {
+        if (!(hasResendKey && resend)) throw new Error('Resend provider selected but RESEND_API_KEY missing');
+            const emailType = dataSend?.type || '';
+            preview.type = emailType;
+        const result = await sendViaResend(dataSend, '');
+        console.log('[sendSimpleEmail] ✅ Resend sent, id:', result?.id || result);
+        return result;
+    }
 
-        if (error) {
-            console.error('[sendSimpleEmail] Resend returned error:', error);
-            throw error;
+    if (emailProvider === 'smtp') {
+        if (!hasSmtp) throw new Error('SMTP provider selected but SMTP_* env vars missing');
+        const result = await sendViaNodemailer(dataSend, '');
+        console.log('[sendSimpleEmail] ✅ SMTP sent, info:', result);
+        return result;
+    }
+
+    // auto mode: try Resend first (if configured), then fallback to SMTP
+    if (emailProvider === 'auto') {
+        if (hasResendKey && resend) {
+            try {
+                const result = await sendViaResend(dataSend, '');
+                console.log('[sendSimpleEmail] ✅ Resend sent, id:', result?.id || result);
+                return result;
+            } catch (err) {
+                console.warn('[sendSimpleEmail] Resend failed, will attempt SMTP fallback if available:', err?.message || err);
+                // if authentication error (401) or other, fallback to SMTP when available
+                const status = err?.raw?.statusCode || err?.statusCode || null;
+                if (hasSmtp && (status === 401 || status === 403 || true)) {
+                    return await sendViaNodemailer(dataSend, '');
+                }
+                throw err;
+            }
         }
 
-        console.log('[sendSimpleEmail] ✅ Email sent successfully, id:', data?.id, 'raw:', data);
-        return data;
-    } catch (err) {
-        console.error('[sendSimpleEmail] Error while sending mail:', err?.message || err, err);
+        if (hasSmtp) {
+            const result = await sendViaNodemailer(dataSend, '');
+            console.log('[sendSimpleEmail] ✅ SMTP sent, info:', result);
+            return result;
+        }
+
+        const err = new Error('No email provider configured (RESEND_API_KEY or SMTP_* missing)');
+        console.error('[sendSimpleEmail] ', err.message);
         throw err;
     }
+
+    throw new Error(`Unknown EMAIL_PROVIDER value: ${emailProvider}`);
 };
 
 const sendAttachment = async (dataSend) => {
-    try {
-        const imgBase64 = dataSend?.imgBase64 || '';
-        const base64Part = imgBase64.split('base64,')[1] || imgBase64;
-        let attachmentSize = 0;
-        try {
-            // approximate size in bytes
-            attachmentSize = Math.ceil((base64Part.length * 3) / 4);
-        } catch (e) {
-            attachmentSize = 0;
-        }
+    const imgBase64 = dataSend?.imgBase64 || '';
+    const base64Part = imgBase64.split('base64,')[1] || imgBase64;
+    let attachmentSize = 0;
+    try { attachmentSize = Math.ceil((base64Part.length * 3) / 4); } catch (e) { attachmentSize = 0; }
 
-        console.log('[sendAttachment] preparing to send attachment to:', dataSend?.email, 'patientId:', dataSend?.patientId, 'attachmentBytesApprox:', attachmentSize);
+    console.log('[sendAttachment] preparing to send attachment to:', dataSend?.email || dataSend?.receiveEmail, 'patientId:', dataSend?.patientId, 'attachmentBytesApprox:', attachmentSize);
 
-        const filename = `remedy-${dataSend.patientId}-${new Date().getTime()}.png`;
+    const filename = `remedy-${dataSend.patientId}-${new Date().getTime()}.png`;
 
-        const { data, error } = await resend.emails.send({
+    // provider selection
+    if (emailProvider === 'resend') {
+        if (!(hasResendKey && resend)) throw new Error('Resend provider selected but RESEND_API_KEY missing');
+        const result = await resend.emails.send({
             from: fromField,
-            to: dataSend.email,
+            to: dataSend.email || dataSend.receiveEmail,
             subject: dataSend.subject || "Thông tin hóa đơn",
             html: getBodyHTMLEmailRemedy(dataSend, 'Remedy'),
-            attachments: [
-                {
-                    filename,
-                    content: base64Part,
-                    encoding: 'base64'
-                }
-            ]
+            attachments: [ { filename, content: base64Part, encoding: 'base64' } ]
         });
+        console.log('[sendAttachment] ✅ Resend attachment sent, id:', result?.id || result);
+        return result;
+    }
 
-        if (error) {
-            console.error('[sendAttachment] Resend returned error:', error);
-            throw error;
+    if (emailProvider === 'smtp') {
+        if (!hasSmtp) throw new Error('SMTP provider selected but SMTP_* env vars missing');
+        const mailOptions = {
+            from: fromField,
+            to: dataSend.email || dataSend.receiveEmail,
+            subject: dataSend.subject || "Thông tin hóa đơn",
+            html: getBodyHTMLEmailRemedy(dataSend, 'Remedy'),
+            attachments: [{ filename, content: base64Part, encoding: 'base64' }]
+        };
+        const info = await transporter.sendMail(mailOptions);
+        console.log('[sendAttachment] ✅ SMTP attachment sent, info:', info);
+        return info;
+    }
+
+    // auto: try resend then smtp
+    if (emailProvider === 'auto') {
+        if (hasResendKey && resend) {
+            try {
+                const result = await resend.emails.send({
+                    from: fromField,
+                    to: dataSend.email || dataSend.receiveEmail,
+                    subject: dataSend.subject || "Thông tin hóa đơn",
+                    html: getBodyHTMLEmailRemedy(dataSend, 'Remedy'),
+                    attachments: [ { filename, content: base64Part, encoding: 'base64' } ]
+                });
+                console.log('[sendAttachment] ✅ Resend attachment sent, id:', result?.id || result);
+                return result;
+            } catch (err) {
+                console.warn('[sendAttachment] Resend failed, will attempt SMTP fallback if available:', err?.message || err);
+                if (hasSmtp) {
+                    const mailOptions = {
+                        from: fromField,
+                        to: dataSend.email || dataSend.receiveEmail,
+                        subject: dataSend.subject || "Thông tin hóa đơn",
+                        html: getBodyHTMLEmailRemedy(dataSend, 'Remedy'),
+                        attachments: [{ filename, content: base64Part, encoding: 'base64' }]
+                    };
+                    const info = await transporter.sendMail(mailOptions);
+                    console.log('[sendAttachment] ✅ SMTP attachment sent, info:', info);
+                    return info;
+                }
+                throw err;
+            }
         }
 
-        console.log('[sendAttachment] ✅ Attachment email sent successfully, id:', data?.id, 'raw:', data);
-        return data;
-    } catch (err) {
-        console.error('[sendAttachment] Error while sending mail:', err?.message || err, err);
+        if (hasSmtp) {
+            const mailOptions = {
+                from: fromField,
+                to: dataSend.email || dataSend.receiveEmail,
+                subject: dataSend.subject || "Thông tin hóa đơn",
+                html: getBodyHTMLEmailRemedy(dataSend, 'Remedy'),
+                attachments: [{ filename, content: base64Part, encoding: 'base64' }]
+            };
+            const info = await transporter.sendMail(mailOptions);
+            console.log('[sendAttachment] ✅ SMTP attachment sent, info:', info);
+            return info;
+        }
+
+        const err = new Error('No email provider configured (RESEND_API_KEY or SMTP_* missing)');
+        console.error('[sendAttachment] ', err.message);
         throw err;
     }
+
+    throw new Error(`Unknown EMAIL_PROVIDER value: ${emailProvider}`);
 };
 
-let getBodyHTMLEmailRemedy = (dataSend, type) => {
+const getBodyHTMLEmailRemedy = (dataSend, type) => {
     console.log('[getBodyHTMLEmailRemedy] building body, type:', type, 'language:', dataSend?.language);
     let result = '';
-    if (type === '') {
+        if (type === '' || type === 'Booking') {
         if (dataSend.language === 'vi') {
             result = `
                 <h3>Xin chào ${dataSend.patientName}!</h3>
@@ -148,6 +279,36 @@ let getBodyHTMLEmailRemedy = (dataSend, type) => {
                 <p>Best regards!</p>
             `;
         }
+        } else if (type === 'Cancel') {
+            // Cancellation email body
+            const reasonText = dataSend.cancelReason ? (dataSend.language === 'vi' ? `Lý do: ${dataSend.cancelReason}` : `Reason: ${dataSend.cancelReason}`) : '';
+            if (dataSend.language === 'vi') {
+                result = `
+                    <h3>Xin chào ${dataSend.patientName}!</h3>
+                    <p>Rất tiếc, lịch khám của bạn đã bị hủy bởi bác sĩ.</p>
+                    <p>Thông tin lịch hủy:</p>
+                    <ul>
+                        <li>Thời gian: ${dataSend.timeString}</li>
+                        <li>Bác sĩ: ${dataSend.doctorName}</li>
+                    </ul>
+                    <p>${reasonText}</p>
+                    <p>Vui lòng liên hệ phòng khám để sắp xếp lại lịch khám nếu cần.</p>
+                    <p>Xin chân thành cảm ơn!</p>
+                `;
+            } else {
+                result = `
+                    <h3>Dear ${dataSend.patientName}!</h3>
+                    <p>We are sorry to inform you that your appointment has been cancelled by the doctor.</p>
+                    <p>Cancellation details:</p>
+                    <ul>
+                        <li>Time: ${dataSend.time}</li>
+                        <li>Doctor: ${dataSend.doctorName}</li>
+                    </ul>
+                    <p>${reasonText}</p>
+                    <p>Please contact the clinic to reschedule if needed.</p>
+                    <p>Best regards!</p>
+                `;
+            }
     }
     return result;
 };

@@ -547,6 +547,67 @@ let sendRemedy = (data) => {
     });
 };
 
+
+let cancelAppointment = (data) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            console.log('[doctorService.cancelAppointment] called with:', data);
+            if(!data.email || !data.doctorId || !data.patientId || !data.timeType) {
+                console.log('[doctorService.cancelAppointment] missing params', data);
+                resolve({
+                    errCode: 1,
+                    errMessage: 'Missing required parameters'
+                });
+                return;
+            }
+
+            // find appointment in S2 (booked) state and set to canceled S4 (create new code or use S4)
+            let appointment = await db.Booking.findOne({
+                where: {
+                    doctorId: data.doctorId,
+                    patientId: data.patientId,
+                    timeType: data.timeType,
+                    statusId: 'S2'
+                },
+                raw: false
+            });
+            if(appointment) {
+                appointment.statusId = 'S4';
+                await appointment.save();
+                console.log('[doctorService.cancelAppointment] appointment updated to S4 for booking id', appointment.id);
+            } else {
+                console.log('[doctorService.cancelAppointment] no matching appointment found');
+            }
+
+            // send simple email to notify cancellation
+            try {
+                await emailService.sendSimpleEmail({
+                    receiveEmail: data.email,
+                    patientName: data.patientName || '',
+                    time: data.time || '',
+                    doctorName: data.doctorName || '',
+                    language: data.language || 'en',
+                    subject: data.subject || (data.language === 'vi' ? 'Thông báo hủy lịch khám' : 'Appointment cancellation'),
+                    type: 'Cancel',
+                    cancelReason: data.cancelReason || '',
+                    timeString: data.timeString
+                });
+                console.log('[doctorService.cancelAppointment] cancellation email sent to', data.email);
+            } catch (emailErr) {
+                console.error('[doctorService.cancelAppointment] error sending cancellation email:', emailErr);
+            }
+
+            resolve({
+                errCode: 0,
+                errMessage: 'OK'
+            });
+        } catch (error) {
+            console.error('[doctorService.cancelAppointment] unexpected error:', error);
+            reject(error);
+        }
+    });
+};
+
 module.exports = {
     getTopDoctorHome: getTopDoctorHome,
     getAllDoctors: getAllDoctors,
@@ -558,5 +619,6 @@ module.exports = {
     getExtraInforDoctorById: getExtraInforDoctorById,
     getProfileDoctorById: getProfileDoctorById,
     getListPatientForDoctor: getListPatientForDoctor,
-    sendRemedy: sendRemedy
+    sendRemedy: sendRemedy,
+    cancelAppointment: cancelAppointment
 };
