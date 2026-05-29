@@ -14,7 +14,8 @@ let createCategory = async (req, res) => {
 
 let getAllCategories = async (req, res) => {
     try {
-        const response = await handbookService.getAllCategories();
+        const q = req.query.q;
+        const response = await handbookService.getAllCategories(q);
         res.status(200).json(response);
     } catch (err) {
         console.error('getAllCategories error:', err && err.stack ? err.stack : err);

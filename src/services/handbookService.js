@@ -1,4 +1,5 @@
 import db from '../models/index';
+import { Op } from 'sequelize';
 require('dotenv').config();
 
 let createCategory = async (data) => {
@@ -23,10 +24,19 @@ let createCategory = async (data) => {
     });
 }
 
-let getAllCategories = async () => {
+let getAllCategories = async (q) => {
     return new Promise(async (resolve, reject) => {
         try {
+            const where = {};
+            if (q && typeof q === 'string' && q.trim() !== '') {
+                const like = `%${q.trim()}%`;
+                where[Op.or] = [
+                    { nameVi: { [Op.iLike]: like } },
+                    { nameEn: { [Op.iLike]: like } }
+                ];
+            }
             let data = await db.Handbook.findAll({
+                where,
                 order: [['id', 'DESC']],
                 include: [{ model: db.Specialty, as: 'specialtyData', attributes: ['id', 'nameVi', 'nameEn'] }],
                 raw: false

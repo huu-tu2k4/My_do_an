@@ -1,4 +1,5 @@
 import db from "../models/index";
+import { Op } from 'sequelize';
 
 let createClinic = async (data) => {
     return new Promise(async (resolve, reject) => {
@@ -28,10 +29,15 @@ let createClinic = async (data) => {
     });
 }
 
-let getAllClinic = async () => {
+let getAllClinic = async (q) => {
     return new Promise(async (resolve, reject) => {
         try {
-            let data = await db.Clinic.findAll();
+            const where = {};
+            if (q && typeof q === 'string' && q.trim() !== '') {
+                const like = `%${q.trim()}%`;
+                where.name = { [Op.iLike]: like };
+            }
+            let data = await db.Clinic.findAll({ where });
             if (data && data.length > 0) {
                 data.map(item => {
                     item.image = new Buffer(item.image, 'base64').toString('binary');

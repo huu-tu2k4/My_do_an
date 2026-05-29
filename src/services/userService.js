@@ -87,29 +87,71 @@ let checkUserEmail = (userEmail) => {
 
 }
 
-let getAllUsers = (userId) => {
+let getAllUsers = (userId, page, limit, q) => {
     return new Promise(async (resolve, reject) => {
         try {
-            let user = '';
             if(userId === 'ALL'){
-                user = await db.User.findAll({
-                    where: { roleId: { [Op.in]: [ROLES.ADMIN, ROLES.DOCTOR] } },
-                    attributes: {exclude: ['password']},
-                    include: [
-                        {model: db.Allcode, as: 'positionData', attributes: ['valueEn', 'valueVi']},
-                        {model: db.Allcode, as: 'roleData', attributes: ['valueEn', 'valueVi']}
-                    ],
-                    raw: true,
-                    nest: true
-                });
-            }
-            if(userId && userId !== 'ALL'){
-                user = await db.User.findOne({
+                // server-side pagination if page and limit provided
+                if (page !== undefined && limit !== undefined) {
+                    const offset = (page - 1) * limit;
+                    const where = { roleId: { [Op.in]: [ROLES.ADMIN, ROLES.DOCTOR] } };
+                    if (q && typeof q === 'string' && q.trim() !== '') {
+                        const like = `%${q.trim()}%`;
+                        where[Op.or] = [
+                            { email: { [Op.iLike]: like } },
+                            { firstName: { [Op.iLike]: like } },
+                            { lastName: { [Op.iLike]: like } },
+                            { phoneNumber: { [Op.iLike]: like } }
+                        ];
+                    }
+                    const result = await db.User.findAndCountAll({
+                        where,
+                        attributes: {exclude: ['password']},
+                        include: [
+                            {model: db.Allcode, as: 'positionData', attributes: ['valueEn', 'valueVi']},
+                            {model: db.Allcode, as: 'roleData', attributes: ['valueEn', 'valueVi']}
+                        ],
+                        order: [['createdAt', 'DESC']],
+                        limit,
+                        offset,
+                        distinct: true
+                    });
+                    // result = { rows: [...], count: N }
+                    resolve(result);
+                } else {
+                    // no pagination, return all
+                    const where = { roleId: { [Op.in]: [ROLES.ADMIN, ROLES.DOCTOR] } };
+                    if (q && typeof q === 'string' && q.trim() !== '') {
+                        const like = `%${q.trim()}%`;
+                        where[Op.or] = [
+                            { email: { [Op.iLike]: like } },
+                            { firstName: { [Op.iLike]: like } },
+                            { lastName: { [Op.iLike]: like } },
+                            { phoneNumber: { [Op.iLike]: like } }
+                        ];
+                    }
+                    let users = await db.User.findAll({
+                        where,
+                        attributes: {exclude: ['password']},
+                        include: [
+                            {model: db.Allcode, as: 'positionData', attributes: ['valueEn', 'valueVi']},
+                            {model: db.Allcode, as: 'roleData', attributes: ['valueEn', 'valueVi']}
+                        ],
+                        order: [['createdAt', 'DESC']],
+                        raw: true,
+                        nest: true
+                    });
+                    resolve(users);
+                }
+            } else if(userId && userId !== 'ALL'){
+                let user = await db.User.findOne({
                     where: {id: userId},
                     attributes: {exclude: ['password']}
                 });
+                resolve(user);
+            } else {
+                resolve([]);
             }
-            resolve(user);
         }
         catch (error) {
             reject(error);

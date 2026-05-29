@@ -1,6 +1,6 @@
 import emailService from './emailService';
 import db from '../models/index';
-import { request } from 'express';
+import { Op } from 'sequelize';
 import _ from 'lodash';
 
 require('dotenv').config();
@@ -35,11 +35,19 @@ let getTopDoctorHome = (limit) => {
     });
 };
 
-let getAllDoctors = () => {
+let getAllDoctors = (q) => {
     return new Promise(async (resolve, reject) => {
         try {
+            const where = { roleId: 'R2' };
+            if (q && typeof q === 'string' && q.trim() !== '') {
+                const like = `%${q.trim()}%`;
+                where[Op.or] = [
+                    { firstName: { [Op.iLike]: like } },
+                    { lastName: { [Op.iLike]: like } },
+                ];
+            }
             let doctors = await db.User.findAll({
-                where: { roleId: 'R2' },
+                where,
                 attributes: {
                     exclude: ['password', 'image', 'createdAt', 'updatedAt'],
                 },

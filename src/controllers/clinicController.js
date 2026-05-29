@@ -18,7 +18,8 @@ let createClinic = async (req, res) => {
 
 let getAllClinic = async (req, res) => {
     try {
-        let clinics = await clinicService.getAllClinic();
+        const q = req.query.q;
+        let clinics = await clinicService.getAllClinic(q);
         return res.status(200).json(clinics);
     } catch (e) {
         console.error(e);

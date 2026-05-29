@@ -39,21 +39,30 @@ let handleLogin = async (req, res) => {
 
 let handleGetAllUsers = async (req, res) => {
     let id = req.query.id; // All, id
-    let users = await userService.getAllUsers(id);
+    const page = req.query.page ? parseInt(req.query.page, 10) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : undefined;
+    const q = req.query.q ? req.query.q : undefined;
 
     if(!id){
-        return res.status(200).json({
+        return res.status(400).json({
             errCode: 1,
-            errMessage: 'Missing input parameter!',
-            users
+            errMessage: 'Missing input parameter!'
         });
     }
 
-    return res.status(200).json({
-        errCode: 0,
-        errMessage: 'OK',
-        users
-    });
+    try {
+        const result = await userService.getAllUsers(id, page, limit, q);
+        // result may be a single user or paginated { rows, count }
+        return res.status(200).json({
+            errCode: 0,
+            errMessage: 'OK',
+            users: result.rows !== undefined ? result.rows : result,
+            total: result.count !== undefined ? result.count : (Array.isArray(result) ? result.length : (result ? 1 : 0))
+        });
+    } catch (error) {
+        console.error('Error in handleGetAllUsers:', error);
+        return res.status(500).json({ errCode: -1, errMessage: 'Server error' });
+    }
 }
 
 let handleCreateNewUser = async (req, res) => {

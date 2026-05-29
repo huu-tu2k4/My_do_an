@@ -1,4 +1,5 @@
 import db from '../models/index';
+import { Op } from 'sequelize';
 require('dotenv').config();
 
 let createSpecialty = async (data) => {
@@ -29,10 +30,18 @@ let createSpecialty = async (data) => {
     });
 }
 
-let getAllSpecialty = async () => {
+let getAllSpecialty = async (q) => {
     return new Promise(async (resolve, reject) => {
         try {
-            let data = await db.Specialty.findAll();
+            const where = {};
+            if (q && typeof q === 'string' && q.trim() !== '') {
+                const like = `%${q.trim()}%`;
+                where[Op.or] = [
+                    { nameVi: { [Op.iLike]: like } },
+                    { nameEn: { [Op.iLike]: like } }
+                ];
+            }
+            let data = await db.Specialty.findAll({ where });
             if (data && data.length > 0) {
                 data.map(item => {
                     item.image = new Buffer(item.image, 'base64').toString('binary');
