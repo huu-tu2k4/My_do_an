@@ -1,5 +1,6 @@
-import { where } from "sequelize";
+import { Op } from 'sequelize';
 import db from "../models/index";
+import ROLES from "../config/roles";
 import bcrypt from 'bcryptjs';
 import { raw } from "body-parser";
 import jwt from 'jsonwebtoken';
@@ -22,7 +23,7 @@ let handleUserLogin = (email, password) => {
             if(isExist){
                 let user = await db.User.findOne({
                     where: {email: email},
-                    attributes: ['id', 'email', 'roleId', 'password', 'firstName', 'lastName']
+                    attributes: ['id', 'email', 'roleId', 'password', 'firstName', 'lastName', 'address', 'phoneNumber', 'image'],
                 });
                 if(user){
                     let check = await bcrypt.compare(password, user.password);
@@ -92,6 +93,7 @@ let getAllUsers = (userId) => {
             let user = '';
             if(userId === 'ALL'){
                 user = await db.User.findAll({
+                    where: { roleId: { [Op.in]: [ROLES.ADMIN, ROLES.DOCTOR] } },
                     attributes: {exclude: ['password']},
                     include: [
                         {model: db.Allcode, as: 'positionData', attributes: ['valueEn', 'valueVi']},
