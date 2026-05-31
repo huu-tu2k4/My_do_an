@@ -19,8 +19,10 @@ let createClinic = async (req, res) => {
 let getAllClinic = async (req, res) => {
     try {
         const q = req.query.q;
-        let clinics = await clinicService.getAllClinic(q);
-        return res.status(200).json(clinics);
+        const page = req.query.page ? parseInt(req.query.page, 10) : undefined;
+        const limit = req.query.limit ? parseInt(req.query.limit, 10) : undefined;
+        const result = await clinicService.getAllClinic(q, page, limit);
+        return res.status(200).json({ errCode: 0, errMessage: 'OK', data: result.rows !== undefined ? result.rows : [], total: result.count !== undefined ? result.count : 0 });
     } catch (e) {
         console.error(e);
         return res.status(500).json({
@@ -43,8 +45,25 @@ let getDetailClinicById = async (req, res) => {
     }
 };
 
+let updateClinic = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const response = await clinicService.updateClinic(id, req.body);
+        if (response && response.errCode === 1) {
+            return res.status(400).json(response);
+        }
+        if (response && response.errCode === 2) {
+            return res.status(404).json(response);
+        }
+        return res.status(200).json(response);
+    } catch (err) {
+        res.status(500).json({ errCode: -1, errMessage: 'Error from the server...' });
+    }
+}
+
 module.exports = {
     createClinic: createClinic,
     getAllClinic: getAllClinic,
-    getDetailClinicById: getDetailClinicById
+    getDetailClinicById: getDetailClinicById,
+    updateClinic: updateClinic
 }

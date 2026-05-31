@@ -30,7 +30,7 @@ let createSpecialty = async (data) => {
     });
 }
 
-let getAllSpecialty = async (q) => {
+let getAllSpecialty = async (q, page, limit) => {
     return new Promise(async (resolve, reject) => {
         try {
             const where = {};
@@ -41,18 +41,26 @@ let getAllSpecialty = async (q) => {
                     { nameEn: { [Op.iLike]: like } }
                 ];
             }
-            let data = await db.Specialty.findAll({ where });
-            if (data && data.length > 0) {
-                data.map(item => {
-                    item.image = new Buffer(item.image, 'base64').toString('binary');
-                    return item;
-                });
+            if (page !== undefined && limit !== undefined) {
+                const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+                const result = await db.Specialty.findAndCountAll({ where, order: [['id', 'DESC']], limit: parseInt(limit, 10), offset });
+                if (result && result.rows && result.rows.length > 0) {
+                    result.rows = result.rows.map(item => {
+                        if (item.image) item.image = Buffer.from(item.image, 'base64').toString('binary');
+                        return item;
+                    });
+                }
+                resolve(result);
+            } else {
+                let data = await db.Specialty.findAll({ where, order: [['id', 'DESC']] });
+                if (data && data.length > 0) {
+                    data = data.map(item => {
+                        if (item.image) item.image = Buffer.from(item.image, 'base64').toString('binary');
+                        return item;
+                    });
+                }
+                resolve({ rows: data, count: data.length });
             }
-            resolve({
-                errCode: 0,
-                errMessage: 'OK',
-                data
-            });
         }
         catch (e) {
             reject(e);
@@ -110,8 +118,35 @@ let getDetailSpecialtyById = async (inputId, location) => {
     });
 }
 
+    let updateSpecialty = async (id, data) => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                if (!id) {
+                    resolve({ errCode: 1, errMessage: 'Missing parameter' });
+                } else {
+                    let specialty = await db.Specialty.findOne({ where: { id } });
+                    if (!specialty) {
+                        resolve({ errCode: 2, errMessage: 'Specialty not found' });
+                    } else {
+                        await db.Specialty.update({
+                            nameVi: data.nameVi || specialty.nameVi,
+                            nameEn: data.nameEn || specialty.nameEn,
+                            descriptionHTML: data.descriptionHTML || specialty.descriptionHTML,
+                            descriptionMarkdown: data.descriptionMarkdown || specialty.descriptionMarkdown,
+                            image: data.imageBase64 || specialty.image
+                        }, { where: { id } });
+                        resolve({ errCode: 0, errMessage: 'OK' });
+                    }
+                }
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
 module.exports = {
     createSpecialty: createSpecialty,
     getAllSpecialty: getAllSpecialty,
-    getDetailSpecialtyById: getDetailSpecialtyById
+    getDetailSpecialtyById: getDetailSpecialtyById,
+    updateSpecialty: updateSpecialty
 }

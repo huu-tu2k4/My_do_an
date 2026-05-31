@@ -47,10 +47,12 @@ let initWebRoutes = (app) => {
     router.post('/api/create-new-specialty', authenticateToken, authorizeRoles(ROLES.ADMIN), specialtyController.createSpecialty);
     router.get('/api/get-specialty', specialtyController.getAllSpecialty);
     router.get('/api/get-detail-specialty-by-id', specialtyController.getDetailSpecialtyById);
+    router.put('/api/specialty/:id', authenticateToken, authorizeRoles(ROLES.ADMIN), specialtyController.updateSpecialty);
 
     router.post('/api/create-new-clinic', authenticateToken, authorizeRoles(ROLES.ADMIN), clinicController.createClinic);
     router.get('/api/get-clinic', clinicController.getAllClinic);
     router.get('/api/get-detail-clinic-by-id', clinicController.getDetailClinicById);
+    router.put('/api/clinic/:id', authenticateToken, authorizeRoles(ROLES.ADMIN), clinicController.updateClinic);
 
     // Search endpoint (search by doctor name or specialty)
     router.get('/api/search', searchController.search);

@@ -15,8 +15,10 @@ let createCategory = async (req, res) => {
 let getAllCategories = async (req, res) => {
     try {
         const q = req.query.q;
-        const response = await handbookService.getAllCategories(q);
-        res.status(200).json(response);
+        const page = req.query.page ? parseInt(req.query.page, 10) : undefined;
+        const limit = req.query.limit ? parseInt(req.query.limit, 10) : undefined;
+        const result = await handbookService.getAllCategories(q, page, limit);
+        return res.status(200).json({ errCode: 0, errMessage: 'OK', data: result.rows !== undefined ? result.rows : [], total: result.count !== undefined ? result.count : 0 });
     } catch (err) {
         console.error('getAllCategories error:', err && err.stack ? err.stack : err);
         res.status(500).json({ errCode: -1, errMessage: err && err.message ? err.message : 'Error from the server...' });

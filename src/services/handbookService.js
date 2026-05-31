@@ -24,7 +24,7 @@ let createCategory = async (data) => {
     });
 }
 
-let getAllCategories = async (q) => {
+let getAllCategories = async (q, page, limit) => {
     return new Promise(async (resolve, reject) => {
         try {
             const where = {};
@@ -35,19 +35,38 @@ let getAllCategories = async (q) => {
                     { nameEn: { [Op.iLike]: like } }
                 ];
             }
-            let data = await db.Handbook.findAll({
-                where,
-                order: [['id', 'DESC']],
-                include: [{ model: db.Specialty, as: 'specialtyData', attributes: ['id', 'nameVi', 'nameEn'] }],
-                raw: false
-            });
-            if (data && data.length > 0) {
-                data.map(item => {
-                    if (item.image) item.image = Buffer.from(item.image, 'base64').toString('binary');
-                    return item;
+            if (page !== undefined && limit !== undefined) {
+                const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+                const result = await db.Handbook.findAndCountAll({
+                    where,
+                    order: [['id', 'DESC']],
+                    include: [{ model: db.Specialty, as: 'specialtyData', attributes: ['id', 'nameVi', 'nameEn'] }],
+                    limit: parseInt(limit, 10),
+                    offset,
+                    distinct: true
                 });
+                if (result && result.rows && result.rows.length > 0) {
+                    result.rows = result.rows.map(item => {
+                        if (item.image) item.image = Buffer.from(item.image, 'base64').toString('binary');
+                        return item;
+                    });
+                }
+                resolve(result);
+            } else {
+                let data = await db.Handbook.findAll({
+                    where,
+                    order: [['id', 'DESC']],
+                    include: [{ model: db.Specialty, as: 'specialtyData', attributes: ['id', 'nameVi', 'nameEn'] }],
+                    raw: false
+                });
+                if (data && data.length > 0) {
+                    data = data.map(item => {
+                        if (item.image) item.image = Buffer.from(item.image, 'base64').toString('binary');
+                        return item;
+                    });
+                }
+                resolve({ rows: data, count: data.length });
             }
-            resolve({ errCode: 0, errMessage: 'OK', data });
         } catch (e) {
             reject(e);
         }
