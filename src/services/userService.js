@@ -24,6 +24,10 @@ let handleUserLogin = (email, password) => {
                 let user = await db.User.findOne({
                     where: {email: email},
                     attributes: ['id', 'email', 'roleId', 'password', 'firstName', 'lastName', 'address', 'phoneNumber', 'image'],
+                    include: [
+                        {model: db.Allcode, as: 'positionData', attributes: ['valueEn', 'valueVi', 'keyMap']},
+                        {model: db.Allcode, as: 'genderData', attributes: ['valueEn', 'valueVi', 'keyMap']},
+                    ]
                 });
                 if(user){
                     let check = await bcrypt.compare(password, user.password);
@@ -32,6 +36,7 @@ let handleUserLogin = (email, password) => {
                         userData.errMessage = 'OK';
                         delete user.password;
                         userData.user = user;
+                        delete userData.user.password;
                         try {
                             const payload = { id: user.id, email: user.email, roleId: user.roleId };
                             const token = jwt.sign(payload, jwtSecret, { expiresIn: jwtExpire });

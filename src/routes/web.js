@@ -22,7 +22,7 @@ let initWebRoutes = (app) => {
     router.post('/api/logout', userController.handleLogout);
     router.get('/api/get-all-users', authenticateToken, authorizeRoles(ROLES.ADMIN, ROLES.DOCTOR), userController.handleGetAllUsers);
     router.post('/api/create-new-user', authenticateToken, authorizeRoles(ROLES.ADMIN), userController.handleCreateNewUser);
-    router.put('/api/edit-user', authenticateToken, authorizeRoles(ROLES.ADMIN), userController.handleEditUser);
+    router.put('/api/edit-user', authenticateToken, authorizeRoles(ROLES.ADMIN, ROLES.DOCTOR), userController.handleEditUser);
     router.delete('/api/delete-user', authenticateToken, authorizeRoles(ROLES.ADMIN), userController.handleDeleteUser);
 
     router.get('/api/allcode', userController.getAllCode);
@@ -38,8 +38,8 @@ let initWebRoutes = (app) => {
     router.post('/api/bulk-create-schedule', authenticateToken, authorizeRoles(ROLES.DOCTOR, ROLES.ADMIN), doctorController.bulkCreateSchedule);
     router.post('/api/edit-bulk-schedule', authenticateToken, authorizeRoles(ROLES.DOCTOR, ROLES.ADMIN), doctorController.editBulkSchedule);
     router.get('/api/get-list-patient-for-doctor', authenticateToken, authorizeRoles(ROLES.DOCTOR), doctorController.getListPatientForDoctor);
-    router.post('/api/send-remedy', authenticateToken, authorizeRoles(ROLES.DOCTOR, ROLES.ADMIN), doctorController.sendRemedy);
-    router.post('/api/cancel-appointment', authenticateToken, authorizeRoles(ROLES.DOCTOR, ROLES.ADMIN), doctorController.cancelAppointment);
+    router.post('/api/send-remedy', authenticateToken, authorizeRoles(ROLES.DOCTOR), doctorController.sendRemedy);
+    router.post('/api/cancel-appointment', authenticateToken, authorizeRoles(ROLES.DOCTOR), doctorController.cancelAppointment);
 
     router.post('/api/patient-book-appointment', patientController.postBookAppointment);
     router.post('/api/verify-book-appointment', patientController.postVerifyBookAppointment);
