@@ -96,7 +96,6 @@ let getAllUsers = (userId, page, limit, q) => {
     return new Promise(async (resolve, reject) => {
         try {
             if(userId === 'ALL'){
-                // server-side pagination if page and limit provided
                 if (page !== undefined && limit !== undefined) {
                     const offset = (page - 1) * limit;
                     const where = { roleId: { [Op.in]: [ROLES.ADMIN, ROLES.DOCTOR] } };
@@ -121,10 +120,8 @@ let getAllUsers = (userId, page, limit, q) => {
                         offset,
                         distinct: true
                     });
-                    // result = { rows: [...], count: N }
                     resolve(result);
                 } else {
-                    // no pagination, return all
                     const where = { roleId: { [Op.in]: [ROLES.ADMIN, ROLES.DOCTOR] } };
                     if (q && typeof q === 'string' && q.trim() !== '') {
                         const like = `%${q.trim()}%`;
@@ -267,16 +264,6 @@ let editUser = (data) => {
                     user.image = data.avatar;
                 }
                 await user.save();
-                // await db.User.update({
-                //     firstName: data.firstName,
-                //     lastName: data.lastName,
-                //     email: data.email
-                //     // roleId: data.roleId,
-                //     // positionId: data.positionId,
-                //     // gender: data.gender
-                // }, {
-                //     where: {id: data.id}
-                // });
                 resolve({
                     errCode: 0,
                     errMessage: 'User updated successfully!'

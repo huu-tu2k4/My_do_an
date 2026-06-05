@@ -9,7 +9,6 @@ const basename = path.basename(__filename);
 const env = process.env.NODE_ENV || 'development';
 const db = {};
 
-// === SỬ DỤNG DATABASE_URL - CÁCH TỐT NHẤT CHO SUPABASE ===
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     logging: false,
@@ -27,13 +26,12 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
     }
 });
 
-// verify DB connection early and log helpful error if it fails
 (async () => {
     try {
         await sequelize.authenticate();
-        console.info('✅ Database connection has been established successfully.');
+        console.info('Database connection has been established successfully.');
     } catch (error) {
-        console.error('❌ Unable to connect to the database:', error && error.stack ? error.stack : error);
+        console.error('Unable to connect to the database:', error && error.stack ? error.stack : error);
     }
 })();
 

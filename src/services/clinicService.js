@@ -40,7 +40,7 @@ let getAllClinic = async (q, page, limit) => {
             if (page !== undefined && limit !== undefined) {
                 const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
                 const result = await db.Clinic.findAndCountAll({ where, order: [['id', 'DESC']], limit: parseInt(limit, 10), offset });
-                // convert images
+
                 if (result && result.rows && result.rows.length > 0) {
                     result.rows = result.rows.map(item => {
                         if (item.image) item.image = Buffer.from(item.image, 'base64').toString('binary');
@@ -81,7 +81,6 @@ let getDetailClinicById = async (inputId) => {
                     attributes: ['name', 'address', 'descriptionHTML', 'descriptionMarkdown'],
                 });
                 if (data) {
-                    // convert Sequelize instance to plain object so extra fields are included in JSON
                     data = data.get({ plain: true });
                     const doctorClinic = await db.Doctor_Infor.findAll({
                         where: { clinicId: inputId },

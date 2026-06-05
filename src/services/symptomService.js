@@ -12,23 +12,22 @@ let suggestSpecialty = async (symptoms) => {
             }
 
             const prompt = `
-Người dùng mô tả triệu chứng: "${symptoms}"
+            Người dùng mô tả triệu chứng: "${symptoms}"
 
-Hãy phân tích và gợi ý 1 chuyên khoa phù hợp nhất.
-Trả về **chỉ JSON** theo đúng định dạng sau, không thêm bất kỳ ký tự nào khác:
+            Hãy phân tích và gợi ý 1 chuyên khoa phù hợp nhất.
+            Trả về **chỉ JSON** theo đúng định dạng sau, không thêm bất kỳ ký tự nào khác:
 
-{
-  "suggestedSpecialties": [
-    {
-      "name": "Tên chuyên khoa",
-      "reason": "Lý do gợi ý ngắn gọn, dễ hiểu",
-      "urgency": "cao" | "trung bình" | "thấp"
-    }
-  ],
-  "advice": "Lời khuyên ngắn gọn cho người dùng bằng tiếng Việt"
-}`;
+            {
+            "suggestedSpecialties": [
+                {
+                "name": "Tên chuyên khoa",
+                "reason": "Lý do gợi ý ngắn gọn, dễ hiểu",
+                "urgency": "cao" | "trung bình" | "thấp"
+                }
+            ],
+            "advice": "Lời khuyên ngắn gọn cho người dùng bằng tiếng Việt"
+            }`;
 
-            // Gọi Gemini
             const geminiResponse = await aiService.generateContent(prompt);
 
             if (geminiResponse.errCode !== 0) {

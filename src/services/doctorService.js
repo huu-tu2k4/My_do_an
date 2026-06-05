@@ -97,7 +97,6 @@ let postInforDoctor = (inputData) => {
                 });
             }
             else{
-                // Upsert to Markdown table
                 if(inputData.action === 'CREATE') {
                     await db.Markdown.create({
                         contentHTML: inputData.contentHTML,
@@ -120,13 +119,11 @@ let postInforDoctor = (inputData) => {
                     }
                 }
 
-                // Upsert to doctor_infor table
                 let doctorInfor = await db.Doctor_Infor.findOne({
                     where: { doctorId: inputData.doctorId },
                     raw: false
                 });
                 if(doctorInfor) {
-                    // Update existing record
                     await doctorInfor.update({
                         priceId: inputData.selectedPrice,
                         provinceId: inputData.selectedProvince,
@@ -139,7 +136,6 @@ let postInforDoctor = (inputData) => {
                     });
                 }
                 else {
-                    // Create new record
                     await db.Doctor_Infor.create({
                         doctorId: inputData.doctorId,
                         priceId: inputData.selectedPrice,
@@ -228,12 +224,10 @@ let bulkCreateSchedule = (data) => {
                 if(schedule && schedule.length > 0) {
                     schedule = schedule.map(item => {
                         item.maxNumber = MAX_NUMBER_SCHEDULE;
-                        // ensure timeType is stored as string to match Allcode.keyMap (varchar)
                         if (item.timeType !== undefined && item.timeType !== null) item.timeType = String(item.timeType);
                         return item;
                     });
                 }
-                // Full sync: create missing, update existing, delete removed (in a transaction)
                 let t;
                 try {
                     t = await db.sequelize.transaction();
@@ -267,14 +261,11 @@ let bulkCreateSchedule = (data) => {
                             );
                         }
                     }
-
-                    // delete schedules that exist in DB but are not present in incoming schedule
                     let toDelete = _.differenceWith(existing, schedule, comparator);
                     if(toDelete && toDelete.length > 0) {
                         const idsToDelete = toDelete.map(d => d.id);
                         await db.Schedule.destroy({ where: { id: idsToDelete }, transaction: t });
                     }
-
                     await t.commit();
                 } catch (err) {
                     if(t) await t.rollback();
@@ -305,13 +296,10 @@ let editBulkSchedule = (data) => {
                 if(schedule && schedule.length > 0) {
                     schedule = schedule.map(item => {
                         item.maxNumber = MAX_NUMBER_SCHEDULE;
-                        // ensure timeType is stored as string to match Allcode.keyMap (varchar)
                         if (item.timeType !== undefined && item.timeType !== null) item.timeType = String(item.timeType);
                         return item;
                     });
                 }
-
-                // Full sync: create missing, update existing, delete removed (in a transaction)
                 let t;
                 try {
                     t = await db.sequelize.transaction();
@@ -529,7 +517,6 @@ let sendRemedy = (data) => {
                 });
             }
             else{
-                // Update patient status
                 let appointment = await db.Booking.findOne({
                     where: {
                         doctorId: data.doctorId,
@@ -573,8 +560,6 @@ let cancelAppointment = (data) => {
                 });
                 return;
             }
-
-            // find appointment in S2 (booked) state and set to canceled S4 (create new code or use S4)
             let appointment = await db.Booking.findOne({
                 where: {
                     doctorId: data.doctorId,
@@ -591,7 +576,6 @@ let cancelAppointment = (data) => {
                 console.log('[doctorService.cancelAppointment] no matching appointment found');
             }
 
-            // send simple email to notify cancellation
             try {
                 await emailService.sendSimpleEmail({
                     receiveEmail: data.email,

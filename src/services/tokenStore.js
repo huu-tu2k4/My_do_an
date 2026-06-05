@@ -4,7 +4,6 @@ const addRefreshToken = async (token, userId, expiresAt) => {
     try {
         return await db.RefreshToken.create({ token, userId, expiresAt: new Date(expiresAt), revoked: false });
     } catch (e) {
-        // log or rethrow in real app
         return null;
     }
 }

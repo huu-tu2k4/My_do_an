@@ -2,8 +2,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import viewEngine from "./config/viewEngine";
 import initWebRoutes from "./routes/web";
-// import connectDB from "./config/connectDB";   // ← XÓA DÒNG NÀY
-import db from "./models";   // ← SỬA THÀNH DÒNG NÀY
+import db from "./models";
 
 require('dotenv').config();
 import cookieParser from 'cookie-parser';
@@ -18,23 +17,20 @@ app.use(function(req, res, next) {
     next();
 });
 
-//config app
 app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 
-// parse cookies
 app.use(cookieParser());
 
 viewEngine(app);
 initWebRoutes(app);
 
-// Kết nối Database
 const connectDB = async () => {
     try {
         await db.sequelize.authenticate();
-        console.log('✅ Database connection has been established successfully.');
+        console.log('Database connection has been established successfully.');
     } catch (error) {
-        console.error('❌ Unable to connect to the database:', error);
+        console.error('Unable to connect to the database:', error);
     }
 };
 
@@ -43,5 +39,5 @@ connectDB();
 const port = process.env.PORT || 8080;
 
 app.listen(port, () => {
-    console.log(`✅ BackEnd is running with port : ${port}`);
+    console.log(`Backend is running with port : ${port}`);
 });

@@ -28,7 +28,6 @@ let postBookAppointment = (data) => {
             else {
                 let token = uuidv4();
 
-                // upsert patient (identify by email)
                 let [user, userCreated] = await db.User.findOrCreate({
                     where: { email: data.email },
                     defaults: {
@@ -42,7 +41,6 @@ let postBookAppointment = (data) => {
                     }
                 });
 
-                // create a booking record for the specific slot (patientId + doctorId + date + timeType)
                 if (user && user.id) {
                     let [booking, bookingCreated] = await db.Booking.findOrCreate({
                         where: {
@@ -69,7 +67,6 @@ let postBookAppointment = (data) => {
                         return;
                     }
 
-                    // send email after booking created to avoid sending email on DB failure
                     await emailService.sendSimpleEmail({
                         receiveEmail: data.email,
                         patientName: `${data.firstName} ${data.lastName}`,
@@ -86,8 +83,6 @@ let postBookAppointment = (data) => {
                     });
                     return;
                 }
-
-                // fallback: should not reach here normally
                 resolve({
                     errCode: 3,
                     errMessage: 'Could not create booking.'

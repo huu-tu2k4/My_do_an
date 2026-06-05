@@ -5,7 +5,6 @@ let search = (q, type) => {
     return new Promise(async (resolve, reject) => {
         try {
             if (!q) {
-                // return structured empty result for both
                 if (type === 'both') {
                     resolve({ errCode: 0, errMessage: 'OK', data: { doctors: [], specialties: [] } });
                 } else if (type === 'specialty') {
@@ -18,7 +17,6 @@ let search = (q, type) => {
 
             const keyword = `%${q}%`;
 
-            // search specialties
             const specialtyQuery = async () => {
                 return db.Specialty.findAll({
                     where: {
@@ -31,7 +29,6 @@ let search = (q, type) => {
                 });
             };
 
-            // search doctors
             const doctorQuery = async () => {
                 return db.User.findAll({
                     where: {
@@ -63,7 +60,6 @@ let search = (q, type) => {
                 return;
             }
 
-            // default: doctor
             let doctors = await doctorQuery();
             resolve({ errCode: 0, errMessage: 'OK', data: doctors });
         } catch (error) {

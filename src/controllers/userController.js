@@ -14,7 +14,6 @@ let handleLogin = async (req, res) => {
 
     try {
         let userData = await userService.handleUserLogin(email, password);
-        // set refresh token as HttpOnly cookie (if provided)
         if (userData && userData.refreshToken) {
             res.cookie('refreshToken', userData.refreshToken, {
                 httpOnly: true,
@@ -38,7 +37,7 @@ let handleLogin = async (req, res) => {
 }
 
 let handleGetAllUsers = async (req, res) => {
-    let id = req.query.id; // All, id
+    let id = req.query.id;
     const page = req.query.page ? parseInt(req.query.page, 10) : undefined;
     const limit = req.query.limit ? parseInt(req.query.limit, 10) : undefined;
     const q = req.query.q ? req.query.q : undefined;
@@ -52,7 +51,6 @@ let handleGetAllUsers = async (req, res) => {
 
     try {
         const result = await userService.getAllUsers(id, page, limit, q);
-        // result may be a single user or paginated { rows, count }
         return res.status(200).json({
             errCode: 0,
             errMessage: 'OK',
@@ -132,7 +130,6 @@ let handleLogout = async (req, res) => {
         if (refreshToken) {
             await userService.revokeRefreshToken(refreshToken);
         }
-        // clear cookie
         res.clearCookie('refreshToken');
         return res.status(200).json({ errCode: 0 });
     } catch (e) {

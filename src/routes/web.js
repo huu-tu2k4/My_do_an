@@ -54,12 +54,10 @@ let initWebRoutes = (app) => {
     router.get('/api/get-detail-clinic-by-id', clinicController.getDetailClinicById);
     router.put('/api/clinic/:id', authenticateToken, authorizeRoles(ROLES.ADMIN), clinicController.updateClinic);
 
-    // Search endpoint (search by doctor name or specialty)
     router.get('/api/search', searchController.search);
 
-    //ai routes
     router.post('/api/suggest-specialty', aiController.suggestSpecialty);
-    // Handbook categories
+
     router.get('/api/handbook/categories', handbookController.getAllCategories);
     router.get('/api/handbook/categories/:id', handbookController.getCategoryById);
     router.post('/api/handbook/categories', authenticateToken, authorizeRoles(ROLES.ADMIN), handbookController.createCategory);
