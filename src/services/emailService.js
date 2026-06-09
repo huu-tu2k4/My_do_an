@@ -12,12 +12,12 @@ if (brevoApiKey) {
         transactionalApi = new Brevo.TransactionalEmailsApi();
         transactionalApi.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, brevoApiKey);
         
-        console.log('[emailService] ✅ Brevo API initialized successfully (v2)');
+        console.log('[emailService] Brevo API initialized successfully (v2)');
     } catch (err) {
-        console.error('[emailService] ❌ Failed to initialize Brevo:', err.message);
+        console.error('[emailService] Failed to initialize Brevo:', err.message);
     }
 } else {
-    console.warn('[emailService] ⚠️ BREVO_API_KEY is missing');
+    console.warn('[emailService] BREVO_API_KEY is missing');
 }
 
 const transporter = nodemailer.createTransport({
@@ -95,7 +95,7 @@ const sendSimpleEmail = async (dataSend) => {
     if ((emailProvider === 'brevo' || emailProvider === 'auto') && transactionalApi) {
         try {
             const result = await sendViaBrevo(dataSend, dataSend.type || '');
-            console.log('[sendSimpleEmail] ✅ Sent via Brevo');
+            console.log('[sendSimpleEmail] Sent via Brevo');
             return result;
         } catch (err) {
             console.warn('[sendSimpleEmail] Brevo failed → fallback SMTP:', err.message);
@@ -103,7 +103,7 @@ const sendSimpleEmail = async (dataSend) => {
     }
 
     const result = await sendViaNodemailer(dataSend, dataSend.type || '');
-    console.log('[sendSimpleEmail] ✅ Sent via SMTP');
+    console.log('[sendSimpleEmail] Sent via SMTP');
     return result;
 };
 

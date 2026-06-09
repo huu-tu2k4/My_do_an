@@ -282,80 +282,6 @@ let bulkCreateSchedule = (data) => {
     });
 };
 
-let editBulkSchedule = (data) => {
-    return new Promise(async (resolve, reject) => {
-        try {
-            if(!data.arrSchedule || !data.doctorId || !data.date) {
-                resolve({
-                    errCode: 1,
-                    errMessage: 'Missing required parameters'
-                });
-            }
-            else{
-                let schedule = data.arrSchedule;
-                if(schedule && schedule.length > 0) {
-                    schedule = schedule.map(item => {
-                        item.maxNumber = MAX_NUMBER_SCHEDULE;
-                        if (item.timeType !== undefined && item.timeType !== null) item.timeType = String(item.timeType);
-                        return item;
-                    });
-                }
-                let t;
-                try {
-                    t = await db.sequelize.transaction();
-
-                    let existing = await db.Schedule.findAll({
-                        where: {
-                            doctorId: data.doctorId,
-                            date: String(data.date)
-                        },
-                        attributes: ['id', 'timeType', 'date', 'doctorId', 'maxNumber'],
-                        raw: true,
-                        transaction: t
-                    });
-
-                    const comparator = (a, b) => {
-                        return a.timeType === b.timeType && +a.date === +b.date && a.doctorId === b.doctorId;
-                    };
-
-                    let toCreate = _.differenceWith(schedule, existing, comparator);
-                    if(toCreate && toCreate.length > 0) {
-                        await db.Schedule.bulkCreate(toCreate, { transaction: t });
-                    }
-
-                    let toUpdate = _.intersectionWith(schedule, existing, comparator);
-                    for(let i = 0; i < toUpdate.length; i++) {
-                        const match = existing.find(e => e.timeType === toUpdate[i].timeType && +e.date === +toUpdate[i].date && e.doctorId === toUpdate[i].doctorId);
-                        if(match) {
-                            await db.Schedule.update(
-                                { maxNumber: toUpdate[i].maxNumber },
-                                { where: { id: match.id }, transaction: t }
-                            );
-                        }
-                    }
-
-                    let toDelete = _.differenceWith(existing, schedule, comparator);
-                    if(toDelete && toDelete.length > 0) {
-                        const idsToDelete = toDelete.map(d => d.id);
-                        await db.Schedule.destroy({ where: { id: idsToDelete }, transaction: t });
-                    }
-
-                    await t.commit();
-                } catch (err) {
-                    if(t) await t.rollback();
-                    throw err;
-                }
-                resolve({
-                    errCode: 0,
-                    errMessage: 'OK'
-                });
-            }
-        } catch (error) {
-            reject(error);
-        }
-    });
-};
-
 let getScheduleByDateService = (doctorId, date) => {
     return new Promise(async (resolve, reject) => {
         try {
@@ -610,7 +536,6 @@ module.exports = {
     postInforDoctor: postInforDoctor,
     getDetailDoctorById: getDetailDoctorById,
     bulkCreateSchedule: bulkCreateSchedule,
-    editBulkSchedule: editBulkSchedule,
     getScheduleByDateService: getScheduleByDateService,
     getExtraInforDoctorById: getExtraInforDoctorById,
     getProfileDoctorById: getProfileDoctorById,

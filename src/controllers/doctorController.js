@@ -78,7 +78,7 @@ let bulkCreateSchedule = async (req, res) => {
 
 let editBulkSchedule = async (req, res) => {
     try {
-        let response = await doctorService.editBulkSchedule(req.body);
+        let response = await doctorService.bulkCreateSchedule(req.body);
         if (response && response.errCode === 1) {
             return res.status(400).json(response);
         }

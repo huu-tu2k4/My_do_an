@@ -40,15 +40,17 @@ let handleUserLogin = (email, password) => {
                         try {
                             const payload = { id: user.id, email: user.email, roleId: user.roleId };
                             const token = jwt.sign(payload, jwtSecret, { expiresIn: jwtExpire });
-                            // refresh token
+                            
                             const refreshToken = jwt.sign({ id: user.id }, jwtRefreshSecret, { expiresIn: jwtRefreshExpire });
-                            // store refresh token in in-memory store for revocation support
+                            
                             const expiresAt = Date.now() + (7 * 24 * 60 * 60 * 1000);
                             await addRefreshToken(refreshToken, user.id, expiresAt);
                             userData.token = token;
                             userData.refreshToken = refreshToken;
                         } catch (err) {
-                            // ignore token error, still return user data
+                            console.error('Error generating tokens:', err);
+                            userData.errCode = 3;
+                            userData.errMessage = 'Error generating tokens';
                         }
                     }
                     else{
