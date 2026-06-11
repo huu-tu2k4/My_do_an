@@ -224,6 +224,7 @@ let bulkCreateSchedule = (data) => {
                 if(schedule && schedule.length > 0) {
                     schedule = schedule.map(item => {
                         item.maxNumber = MAX_NUMBER_SCHEDULE;
+                        if (item.currentNumber === undefined || item.currentNumber === null) item.currentNumber = 0;
                         if (item.timeType !== undefined && item.timeType !== null) item.timeType = String(item.timeType);
                         return item;
                     });
@@ -302,6 +303,11 @@ let getScheduleByDateService = (doctorId, date) => {
                     nest: true
                 });
                 if(!data) data = [];
+                data = data.filter(item => {
+                    const current = item.currentNumber || 0;
+                    const max = item.maxNumber || 0;
+                    return current < max;
+                });
                 resolve({
                     errCode: 0,
                     errMessage: 'OK',

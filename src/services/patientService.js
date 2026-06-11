@@ -42,6 +42,25 @@ let postBookAppointment = (data) => {
                 });
 
                 if (user && user.id) {
+                    let schedule = await db.Schedule.findOne({
+                        where: {
+                            doctorId: data.doctorId,
+                            date: String(data.date),
+                            timeType: data.timeType
+                        },
+                        raw: false
+                    });
+
+                    if (schedule && typeof schedule.currentNumber === 'number' && typeof schedule.maxNumber === 'number') {
+                        if (schedule.currentNumber >= schedule.maxNumber) {
+                            resolve({
+                                errCode: 4,
+                                errMessage: 'This time slot is full.'
+                            });
+                            return;
+                        }
+                    }
+
                     let [booking, bookingCreated] = await db.Booking.findOrCreate({
                         where: {
                             patientId: user.id,
@@ -65,6 +84,15 @@ let postBookAppointment = (data) => {
                             errMessage: 'You have already booked this slot!'
                         });
                         return;
+                    }
+
+                    try {
+                        if (schedule) {
+                            schedule.currentNumber = (schedule.currentNumber || 0) + 1;
+                            await schedule.save();
+                        }
+                    } catch (err) {
+                        console.error('[patientService.postBookAppointment] failed to increment schedule currentNumber', err);
                     }
 
                     await emailService.sendSimpleEmail({
