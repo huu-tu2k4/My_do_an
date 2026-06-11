@@ -264,6 +264,46 @@ let bulkCreateSchedule = (data) => {
                     }
                     let toDelete = _.differenceWith(existing, schedule, comparator);
                     if(toDelete && toDelete.length > 0) {
+                        const timeTypesToDelete = toDelete.map(d => d.timeType);
+
+                        const bookingsS2 = await db.Booking.findAll({
+                            where: {
+                                doctorId: data.doctorId,
+                                date: String(data.date),
+                                timeType: { [Op.in]: timeTypesToDelete },
+                                statusId: 'S2'
+                            },
+                            transaction: t,
+                            raw: true
+                        });
+
+                        if (bookingsS2 && bookingsS2.length > 0) {
+                            if (t) await t.rollback();
+                            resolve({
+                                errCode: 2,
+                                errMessage: 'Cannot delete schedule: verified bookings (S2) exist. Please cancel them first.'
+                            });
+                            return;
+                        }
+
+                        const bookingsS1 = await db.Booking.findAll({
+                            where: {
+                                doctorId: data.doctorId,
+                                date: String(data.date),
+                                timeType: { [Op.in]: timeTypesToDelete },
+                                statusId: 'S1'
+                            },
+                            transaction: t,
+                            raw: false
+                        });
+
+                        if (bookingsS1 && bookingsS1.length > 0) {
+                            for (let b of bookingsS1) {
+                                b.statusId = 'S4';
+                                await b.save({ transaction: t });
+                            }
+                        }
+
                         const idsToDelete = toDelete.map(d => d.id);
                         await db.Schedule.destroy({ where: { id: idsToDelete }, transaction: t });
                     }

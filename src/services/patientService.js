@@ -4,8 +4,7 @@ import emailService from "./emailService";
 import { v4 as uuidv4 } from 'uuid';
 
 let buildUrlEmail = (doctorId, token) => {
-    let result = `${process.env.URL_REACT}/verify-booking?token=${token}&doctorId=${doctorId}`;
-    return result;
+    return `${process.env.URL_REACT}/verify-booking?token=${token}&doctorId=${doctorId}`;
 }
 
 let postBookAppointment = (data) => {
@@ -24,77 +23,109 @@ let postBookAppointment = (data) => {
                     errCode: 1,
                     errMessage: 'Missing required parameters!'
                 })
+                return;
             }
-            else {
-                let token = uuidv4();
 
-                let [user, userCreated] = await db.User.findOrCreate({
-                    where: { email: data.email },
-                    defaults: {
-                        email: data.email,
-                        roleId: 'R3',
-                        gender: data.selectedGender,
-                        address: data.address,
-                        firstName: data.firstName,
-                        lastName: data.lastName,
-                        phoneNumber: data.phoneNumber
-                    }
+            let token = uuidv4();
+
+            let [user, userCreated] = await db.User.findOrCreate({
+                where: { email: data.email },
+                defaults: {
+                    email: data.email,
+                    roleId: 'R3',
+                    gender: data.selectedGender,
+                    address: data.address,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    phoneNumber: data.phoneNumber
+                }
+            });
+
+            if (!(user && user.id)) {
+                resolve({
+                    errCode: 3,
+                    errMessage: 'Could not create booking.'
+                });
+                return;
+            }
+
+            let t;
+            try {
+                t = await db.sequelize.transaction();
+
+                let scheduleTx = await db.Schedule.findOne({
+                    where: {
+                        doctorId: data.doctorId,
+                        date: String(data.date),
+                        timeType: data.timeType
+                    },
+                    raw: false,
+                    transaction: t
                 });
 
-                if (user && user.id) {
-                    let schedule = await db.Schedule.findOne({
-                        where: {
-                            doctorId: data.doctorId,
-                            date: String(data.date),
-                            timeType: data.timeType
-                        },
-                        raw: false
+                if (!scheduleTx) {
+                    if (t) await t.rollback();
+                    resolve({
+                        errCode: 5,
+                        errMessage: 'Selected time slot is no longer available.'
                     });
+                    return;
+                }
 
-                    if (schedule && typeof schedule.currentNumber === 'number' && typeof schedule.maxNumber === 'number') {
-                        if (schedule.currentNumber >= schedule.maxNumber) {
-                            resolve({
-                                errCode: 4,
-                                errMessage: 'This time slot is full.'
-                            });
-                            return;
-                        }
-                    }
-
-                    let [booking, bookingCreated] = await db.Booking.findOrCreate({
-                        where: {
-                            patientId: user.id,
-                            doctorId: data.doctorId,
-                            date: String(data.date),
-                            timeType: data.timeType
-                        },
-                        defaults: {
-                            statusId: 'S1',
-                            doctorId: data.doctorId,
-                            patientId: user.id,
-                            date: String(data.date),
-                            timeType: data.timeType,
-                            token: token
-                        }
-                    });
-
-                    if (!bookingCreated) {
+                if (typeof scheduleTx.currentNumber === 'number' && typeof scheduleTx.maxNumber === 'number') {
+                    if (scheduleTx.currentNumber >= scheduleTx.maxNumber) {
+                        if (t) await t.rollback();
                         resolve({
-                            errCode: 2,
-                            errMessage: 'You have already booked this slot!'
+                            errCode: 4,
+                            errMessage: 'This time slot is full.'
                         });
                         return;
                     }
+                }
 
-                    try {
-                        if (schedule) {
-                            schedule.currentNumber = (schedule.currentNumber || 0) + 1;
-                            await schedule.save();
-                        }
-                    } catch (err) {
-                        console.error('[patientService.postBookAppointment] failed to increment schedule currentNumber', err);
-                    }
+                let [booking, bookingCreated] = await db.Booking.findOrCreate({
+                    where: {
+                        patientId: user.id,
+                        doctorId: data.doctorId,
+                        date: String(data.date),
+                        timeType: data.timeType
+                    },
+                    defaults: {
+                        statusId: 'S1',
+                        doctorId: data.doctorId,
+                        patientId: user.id,
+                        date: String(data.date),
+                        timeType: data.timeType,
+                        token: token
+                    },
+                    transaction: t
+                });
 
+                if (!bookingCreated) {
+                    if (t) await t.rollback();
+                    resolve({
+                        errCode: 2,
+                        errMessage: 'You have already booked this slot!'
+                    });
+                    return;
+                }
+
+                try {
+                    scheduleTx.currentNumber = (scheduleTx.currentNumber || 0) + 1;
+                    await scheduleTx.save({ transaction: t });
+                } catch (err) {
+                    if (t) await t.rollback();
+                    console.error('[patientService.postBookAppointment] failed to increment schedule currentNumber', err);
+                    resolve({
+                        errCode: 6,
+                        errMessage: 'Failed to reserve the slot, please try again.'
+                    });
+                    return;
+                }
+
+                await t.commit();
+
+                try {
                     await emailService.sendSimpleEmail({
                         receiveEmail: data.email,
                         patientName: `${data.firstName} ${data.lastName}`,
@@ -104,17 +135,18 @@ let postBookAppointment = (data) => {
                         redirectLink: buildUrlEmail(data.doctorId, token),
                         type: 'Booking'
                     });
-
-                    resolve({
-                        errCode: 0,
-                        errMessage: 'Appointment booked successfully!'
-                    });
-                    return;
+                } catch (err) {
+                    console.error('[patientService.postBookAppointment] send email failed', err);
                 }
+
                 resolve({
-                    errCode: 3,
-                    errMessage: 'Could not create booking.'
+                    errCode: 0,
+                    errMessage: 'Appointment booked successfully!'
                 });
+                return;
+            } catch (err) {
+                if (t) await t.rollback();
+                throw err;
             }
         } catch (e) {
             reject(e);
